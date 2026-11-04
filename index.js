@@ -40,7 +40,7 @@ app.get('/', (req, res) => {
     });
 });
 
-app.get('/index', async (req, res) => {
+app.get('/kiosk', async (req, res) => {
     try {
         const query_res = await pool.query('SELECT * FROM menuitem ORDER BY menu_item_id;');
         const items = query_res.rows;
