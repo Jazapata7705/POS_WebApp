@@ -35,8 +35,8 @@ process.on('SIGINT', function() {
 // Routes
 app.get('/', (req, res) => {
     res.render('portal', {
-        vendor: process.env.VENDOR_NAME || 'Your Shop Name',
-        team: process.env.TEAM_NAME || 'Your Team Name'
+        vendor: process.env.VENDOR_NAME || '80s Bubble Tea',
+        team: process.env.TEAM_NAME || 'Squad 80'
     });
 });
 
