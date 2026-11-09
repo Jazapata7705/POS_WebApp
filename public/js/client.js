@@ -1,5 +1,12 @@
 const CART_KEY = 'drink-cart-v1';
 const CONFIRMED_ORDER_KEY = 'drink-confirmed-order-v1';
+const ACCESSIBILITY_KEY = 'drink-kiosk-accessibility-v1';
+const DEFAULT_ACCESSIBILITY_PREFERENCES = {
+    largeText: false,
+    highContrast: false,
+    largeTargets: false,
+    reducedMotion: false
+};
 const ADD_ONS = [
     { id: 'boba', label: 'Boba', priceCents: 50 },
     { id: 'grass-jelly', label: 'Grass jelly', priceCents: 50 },
@@ -14,6 +21,7 @@ const ADD_ONS_BY_ID = new Map(ADD_ONS.map(addon => [addon.id, addon]));
 let cartStorageUnavailable = false;
 
 document.addEventListener('DOMContentLoaded', () => {
+    setupAccessibilityControls();
     const cart = readCart();
 
     if (document.body.dataset.page === 'menu') {
@@ -27,6 +35,93 @@ document.addEventListener('DOMContentLoaded', () => {
         updateCartBadge(confirmedOrder ? [] : cart);
     }
 });
+
+function setupAccessibilityControls() {
+    const openButton = document.getElementById('accessibility-open');
+    const dialog = document.getElementById('accessibility-dialog');
+    if (!openButton || !dialog) return;
+
+    const controls = Array.from(dialog.querySelectorAll('[data-accessibility-setting]'));
+    const status = document.getElementById('accessibility-storage-status');
+    let preferences = readAccessibilityPreferences();
+
+    function applyPreferences() {
+        document.documentElement.dataset.accessibilityText = preferences.largeText ? 'large' : 'normal';
+        document.body.dataset.accessibilityContrast = preferences.highContrast ? 'high' : 'normal';
+        document.body.dataset.accessibilityTargets = preferences.largeTargets ? 'large' : 'normal';
+        document.documentElement.dataset.accessibilityMotion = preferences.reducedMotion ? 'reduced' : 'normal';
+        controls.forEach(control => {
+            control.checked = preferences[control.dataset.accessibilitySetting];
+        });
+    }
+
+    function savePreferences() {
+        try {
+            sessionStorage.setItem(ACCESSIBILITY_KEY, JSON.stringify(preferences));
+            status.hidden = true;
+        } catch {
+            status.textContent = 'These settings are active on this page, but your browser could not save them for other pages in this tab.';
+            status.hidden = false;
+        }
+    }
+
+    openButton.addEventListener('click', () => {
+        dialog.showModal();
+        openButton.setAttribute('aria-expanded', 'true');
+        controls[0]?.focus();
+    });
+
+    document.getElementById('accessibility-close').addEventListener('click', () => dialog.close());
+    document.getElementById('accessibility-done').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('close', () => {
+        openButton.setAttribute('aria-expanded', 'false');
+        openButton.focus();
+    });
+
+    controls.forEach(control => {
+        control.addEventListener('change', () => {
+            preferences = {
+                ...preferences,
+                [control.dataset.accessibilitySetting]: control.checked
+            };
+            applyPreferences();
+            savePreferences();
+        });
+    });
+
+    document.getElementById('accessibility-reset').addEventListener('click', () => {
+        preferences = { ...DEFAULT_ACCESSIBILITY_PREFERENCES };
+        applyPreferences();
+        try {
+            sessionStorage.removeItem(ACCESSIBILITY_KEY);
+            status.hidden = true;
+        } catch {
+            status.textContent = 'Settings were reset on this page, but your browser could not save the reset for other pages in this tab.';
+            status.hidden = false;
+        }
+    });
+
+    applyPreferences();
+}
+
+function readAccessibilityPreferences() {
+    try {
+        const stored = JSON.parse(sessionStorage.getItem(ACCESSIBILITY_KEY) || '{}');
+        return Object.fromEntries(Object.keys(DEFAULT_ACCESSIBILITY_PREFERENCES).map(key => [
+            key,
+            stored[key] === true
+        ]));
+    } catch {
+        return { ...DEFAULT_ACCESSIBILITY_PREFERENCES };
+    }
+}
+
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: document.documentElement.dataset.accessibilityMotion === 'reduced' ? 'auto' : 'smooth'
+    });
+}
 
 function readCart() {
     let saved;
@@ -173,7 +268,7 @@ function setupMenu(cart) {
             button.setAttribute('aria-pressed', String(button.dataset.category === category));
         });
         view.querySelector('h1')?.focus();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        scrollToTop();
     }
 
     categoryButtons.forEach(button => {
@@ -189,7 +284,7 @@ function setupMenu(cart) {
             categoryNav.hidden = true;
             categoryView.hidden = false;
             lastCategoryButton?.focus();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            scrollToTop();
         });
     });
 
@@ -484,7 +579,10 @@ function renderCheckout(cart, confirmedOrder = null) {
         confirmButton.hidden = true;
         if (startNewOrder) startNewOrder.hidden = false;
         updateCartBadge([]);
-        confirmation?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        confirmation?.scrollIntoView({
+            behavior: document.documentElement.dataset.accessibilityMotion === 'reduced' ? 'auto' : 'smooth',
+            block: 'nearest'
+        });
     });
 
     startNewOrder?.addEventListener('click', event => {

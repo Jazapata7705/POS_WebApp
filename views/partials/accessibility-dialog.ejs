@@ -1,0 +1,34 @@
+<dialog id="accessibility-dialog" class="accessibility-dialog" aria-labelledby="accessibility-heading" aria-describedby="accessibility-description">
+    <div class="accessibility-dialog-heading">
+        <div>
+            <p class="eyebrow">Personalize this kiosk</p>
+            <h2 id="accessibility-heading">Accessibility settings</h2>
+        </div>
+        <button id="accessibility-close" class="dialog-close" type="button" aria-label="Close accessibility settings">×</button>
+    </div>
+    <p id="accessibility-description">These optional display settings apply in this browser tab. Keyboard and screen reader support are always available.</p>
+    <fieldset class="accessibility-settings">
+        <legend>Display and interaction</legend>
+        <label class="accessibility-option" for="accessibility-large-text">
+            <input id="accessibility-large-text" type="checkbox" data-accessibility-setting="largeText">
+            <span>Larger text</span>
+        </label>
+        <label class="accessibility-option" for="accessibility-high-contrast">
+            <input id="accessibility-high-contrast" type="checkbox" data-accessibility-setting="highContrast">
+            <span>High contrast</span>
+        </label>
+        <label class="accessibility-option" for="accessibility-large-targets">
+            <input id="accessibility-large-targets" type="checkbox" data-accessibility-setting="largeTargets">
+            <span>Larger buttons and controls</span>
+        </label>
+        <label class="accessibility-option" for="accessibility-reduced-motion">
+            <input id="accessibility-reduced-motion" type="checkbox" data-accessibility-setting="reducedMotion">
+            <span>Reduce motion</span>
+        </label>
+    </fieldset>
+    <p id="accessibility-storage-status" class="accessibility-storage-status" role="status" aria-live="polite" hidden></p>
+    <div class="accessibility-dialog-actions">
+        <button id="accessibility-reset" class="accessibility-reset" type="button">Reset to defaults</button>
+        <button id="accessibility-done" class="accessibility-done" type="button">Done</button>
+    </div>
+</dialog>

@@ -12,6 +12,7 @@
     <script src="/js/client.js" defer></script>
 </head>
 <body data-page="menu">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <header class="navbar">
         <a class="logo" href="/" aria-label="Drink menu">Menu</a>
         <nav class="nav-links" aria-label="Main">
@@ -21,10 +22,11 @@
                 <span>Checkout</span>
                 <span id="cart-count" class="cart-badge" aria-label="0 items in order">0</span>
             </a>
+            <button id="accessibility-open" class="accessibility-open" type="button" aria-haspopup="dialog" aria-controls="accessibility-dialog" aria-expanded="false">Accessibility</button>
         </nav>
     </header>
 
-    <main class="main-layout main-layout-with-sidebar">
+    <main id="main-content" class="main-layout main-layout-with-sidebar" tabindex="-1">
         <div class="center-banner">
             <nav id="menu-category-nav" class="menu-category-nav" aria-label="Drink categories" hidden>
                 <% menuCategories.forEach(function(cat) { %>
@@ -120,6 +122,8 @@
             </div>
         </aside>
     </main>
+
+    <%- include('partials/accessibility-dialog') %>
 
     <dialog id="customization-dialog" class="customization-dialog" aria-labelledby="dialog-item-name">
         <form id="customization-form" class="customization-form">

@@ -8,6 +8,7 @@
     <script src="/js/client.js" defer></script>
 </head>
 <body data-page="checkout">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <header class="navbar">
         <a class="logo" href="/" aria-label="Return to menu">Menu</a>
         <nav class="nav-links" aria-label="Main">
@@ -17,10 +18,11 @@
                 <span>Checkout</span>
                 <span id="cart-count" class="cart-badge" aria-label="0 items in order">0</span>
             </a>
+            <button id="accessibility-open" class="accessibility-open" type="button" aria-haspopup="dialog" aria-controls="accessibility-dialog" aria-expanded="false">Accessibility</button>
         </nav>
     </header>
 
-    <main class="checkout-page">
+    <main id="main-content" class="checkout-page" tabindex="-1">
         <section class="checkout-card" aria-labelledby="checkout-heading">
             <a class="back-to-menu" href="/">← Back to menu</a>
             <p id="checkout-eyebrow" class="eyebrow">Almost ready</p>
@@ -56,5 +58,7 @@
             </div>
         </section>
     </main>
+
+    <%- include('partials/accessibility-dialog') %>
 </body>
 </html>

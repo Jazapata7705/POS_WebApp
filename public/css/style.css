@@ -47,8 +47,25 @@ button:focus-visible,
 a:focus-visible,
 select:focus-visible,
 input:focus-visible {
-    outline: 3px solid #8eafff;
+    outline: 3px solid #1d4ed8;
     outline-offset: 3px;
+}
+
+.skip-link {
+    position: fixed;
+    top: 0.5rem;
+    left: 0.5rem;
+    z-index: 30;
+    padding: 0.75rem 1rem;
+    transform: translateY(-160%);
+    border-radius: 0.5rem;
+    background: #fff;
+    color: #111;
+    font-weight: 800;
+}
+
+.skip-link:focus {
+    transform: translateY(0);
 }
 
 .navbar {
@@ -77,6 +94,106 @@ input:focus-visible {
     display: flex;
     align-items: center;
     gap: 1.1rem;
+}
+
+.accessibility-open {
+    min-height: 2.5rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--line);
+    border-radius: 0.6rem;
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.accessibility-dialog {
+    width: min(34rem, calc(100% - 2rem));
+    max-height: calc(100vh - 2rem);
+    padding: clamp(1.1rem, 4vw, 1.6rem);
+    overflow: auto;
+    border: 2px solid var(--line);
+    border-radius: 1rem;
+    background: var(--surface);
+    color: var(--ink);
+    box-shadow: 0 24px 80px rgba(25, 22, 44, 0.28);
+}
+
+.accessibility-dialog::backdrop {
+    background: rgba(28, 25, 42, 0.58);
+}
+
+.accessibility-dialog-heading,
+.accessibility-dialog-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.accessibility-dialog-heading h2 {
+    margin: 0 0 0.75rem;
+}
+
+.accessibility-settings {
+    display: grid;
+    gap: 0.4rem;
+    margin: 1.25rem 0;
+    padding: 0;
+    border: 0;
+}
+
+.accessibility-settings legend {
+    margin-bottom: 0.5rem;
+    font-weight: 800;
+}
+
+.accessibility-option {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-height: 3rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 0.65rem;
+    cursor: pointer;
+}
+
+.accessibility-option input {
+    width: 1.3rem;
+    height: 1.3rem;
+    flex: 0 0 auto;
+    accent-color: var(--pink-dark);
+}
+
+.accessibility-dialog-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.accessibility-reset,
+.accessibility-done {
+    min-height: 2.75rem;
+    padding: 0.65rem 0.95rem;
+    border: 1px solid var(--line);
+    border-radius: 0.65rem;
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.accessibility-done {
+    border-color: var(--pink-dark);
+    background: var(--pink-dark);
+    color: #fff;
+}
+
+.accessibility-storage-status {
+    margin: 0.75rem 0;
+    color: var(--ink);
+    font-weight: 700;
 }
 
 .nav-link {
@@ -870,7 +987,21 @@ p {
 
 @media (max-width: 520px) {
     .navbar {
+        position: relative;
+        flex-wrap: wrap;
+        gap: 0.5rem;
         padding-inline: 1rem;
+    }
+
+    .nav-links {
+        width: 100%;
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 0.35rem 0.65rem;
+    }
+
+    .menu-category-nav {
+        top: 0;
     }
 
     .logo {
@@ -1249,4 +1380,68 @@ p {
 .portal-links a {
     min-height: 48px;
     padding: 14px 24px;
+}
+
+html[data-accessibility-text="large"] {
+    font-size: 112.5%;
+}
+
+body[data-accessibility-text="large"] {
+    line-height: 1.65;
+}
+
+body[data-accessibility-contrast="high"] {
+    --pink: #8a1538;
+    --pink-dark: #650c2b;
+    --blue: #005064;
+    --blue-dark: #003c4d;
+    --ink: #111;
+    --muted: #3c3c3c;
+    --line: #555;
+    --surface: #fff;
+    --page: #fff;
+    --soft-pink: #f6dce5;
+    --soft-blue: #d9edf2;
+}
+
+body[data-accessibility-contrast="high"] .category-tab:not([aria-pressed="true"]) {
+    border-color: #555;
+    background: #fff;
+    color: #111;
+}
+
+body[data-accessibility-contrast="high"] .dialog-close,
+body[data-accessibility-contrast="high"] .accessibility-option {
+    border: 1px solid #555;
+    background: #fff;
+    color: #111;
+}
+
+body[data-accessibility-targets="large"] button,
+body[data-accessibility-targets="large"] select,
+body[data-accessibility-targets="large"] .nav-link,
+body[data-accessibility-targets="large"] .checkout-btn,
+body[data-accessibility-targets="large"] .proceed-checkout-btn,
+body[data-accessibility-targets="large"] .back-to-menu,
+body[data-accessibility-targets="large"] .back-to-categories {
+    min-height: 3rem;
+}
+
+body[data-accessibility-targets="large"] .quantity-controls button {
+    min-width: 3rem;
+    padding-inline: 0.85rem;
+}
+
+body[data-accessibility-targets="large"] .accessibility-option {
+    min-height: 3.5rem;
+}
+
+html[data-accessibility-motion="reduced"],
+html[data-accessibility-motion="reduced"] *,
+html[data-accessibility-motion="reduced"] *::before,
+html[data-accessibility-motion="reduced"] *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
 }
