@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Order | Menu</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/client.js" defer></script>
+</head>
+<body data-page="checkout">
+    <header class="navbar">
+        <a class="logo" href="/" aria-label="Return to menu">Menu</a>
+        <nav class="nav-links" aria-label="Main">
+            <a class="nav-link" href="/orders">Orders</a>
+            <a class="nav-link" href="/manager">Manager</a>
+            <a href="/checkout" class="checkout-btn" aria-current="page">
+                <span>Checkout</span>
+                <span id="cart-count" class="cart-badge" aria-label="0 items in order">0</span>
+            </a>
+        </nav>
+    </header>
+
+    <%- include('partials/kiosk-text-controls') %>
+
+    <main class="checkout-page">
+        <section class="checkout-card" aria-labelledby="checkout-heading">
+            <a class="back-to-menu" href="/">← Back to menu</a>
+            <p id="checkout-eyebrow" class="eyebrow">Almost ready</p>
+            <h1 id="checkout-heading" tabindex="-1">Review your order</h1>
+
+            <div id="order-confirmation" class="order-confirmation" role="status" aria-live="polite" hidden>
+                <span class="confirmation-mark" aria-hidden="true">✓</span>
+                <div>
+                    <h2>Order <span id="order-number"></span> confirmed</h2>
+                    <p>Your order has been sent to the store.</p>
+                </div>
+            </div>
+
+            <p id="checkout-storage-error" class="storage-error" role="alert" hidden>
+                Your browser could not read the saved order. Allow storage for this site, then return to the menu and add your drinks again.
+            </p>
+
+            <div id="checkout-empty" class="checkout-empty" hidden>
+                <p>Your order is empty.</p>
+                <a class="proceed-checkout-btn" href="/">Browse drinks</a>
+            </div>
+
+            <div id="checkout-items" class="checkout-items" aria-live="polite"></div>
+
+            <div id="checkout-total" class="checkout-total">
+                <span>Order total</span>
+                <strong id="checkout-total-price">$0.00</strong>
+            </div>
+
+            <div id="checkout-actions" class="checkout-actions">
+                <button id="confirm-order-btn" class="confirm-order-btn" type="button">Confirm order</button>
+                <a id="start-new-order" class="proceed-checkout-btn" href="/" hidden>Start a new order</a>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

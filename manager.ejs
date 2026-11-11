@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Menu</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <% if (!managerUnlocked) { %>
+    <main class="checkout-page manager-login-page">
+        <section class="checkout-card" aria-labelledby="manager-login-heading">
+            <a class="back-to-menu" href="/">← Back to the POS portal</a>
+
+            <p class="eyebrow">Manager access</p>
+            <h1 id="manager-login-heading">Manager sign-in</h1>
+
+            <form class="manager-login-form" method="post" action="/manager/login">
+                <label for="password">Manager password</label>
+                <input id="password" name="password" type="password"
+                    autocomplete="current-password" required>
+
+                <% if (loginError) { %>
+                    <p class="manager-status-error" role="alert"><%= loginError %></p>
+                <% } %>
+
+                <button class="proceed-checkout-btn" type="submit">Unlock dashboard</button>
+            </form>
+        </section>
+    </main>
+    <% } else { %>
+    <%
+        const categories = [...new Set(items.map(item => item.category || 'Uncategorized'))];
+    %>
+    <header class="navbar">
+        <a class="logo" href="/" aria-label="Return to menu">Menu</a>
+        <nav class="nav-links" aria-label="Main">
+            <a class="nav-link" href="/orders">Orders</a>
+            <a class="nav-link" href="/manager" aria-current="page">Manager</a>
+            <a class="nav-link" href="/manager/sales">Sales report</a>
+            <a href="/checkout" class="checkout-btn">Checkout</a>
+        </nav>
+    </header>
+
+    <main class="checkout-page">
+        <section class="checkout-card" aria-labelledby="manager-heading">
+            <a class="back-to-menu" href="/">← Back to menu</a>
+            <p class="eyebrow">Manager view</p>
+            <h1 id="manager-heading">Manage menu</h1>
+            <form method="post" action="/manager/logout">
+                <button type="submit">Lock manager access</button>
+            </form>
+            <p class="manager-hint">Change a drink's price or mark it sold out. Sold-out drinks stay on the menu but can't be ordered.</p>
+            <h2 class="manager-category">Add New Drink</h2>
+<!-- Add New Drink Form -->
+<form class="manager-form" method="post" action="/manager/items/add">
+
+    <label class="manager-name">
+        <input
+            name="name"
+            type="text"
+            placeholder="Drink name"
+            required
+        >
+    </label>
+
+    <label class="manager-price">
+        <span>Price $</span>
+        <input
+            name="price"
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            required
+        >
+    </label>
+
+    <label class="manager-available">
+        <input
+            name="is_available"
+            type="checkbox"
+            checked
+        >
+        <span>Available</span>
+    </label>
+
+    <label>
+        <span>Category</span>
+        <select name="category" required>
+            <% categories.forEach(function(cat) { %>
+                <option value="<%= cat %>"><%= cat %></option>
+            <% }); %>
+        </select>
+    </label>
+
+    <button class="manager-save" type="submit">
+        Add Drink
+    </button>
+
+</form>
+<!-- End of Add New Drink Form -->
+            <% categories.forEach(function(cat) { %>
+                <h2 class="manager-category"><%= cat %></h2>
+                <ul class="manager-list">
+                    <% items.filter(item => (item.category || 'Uncategorized') === cat).forEach(function(item) {
+                        const id = item.menu_item_id;
+                    %>
+                        <li id="item-<%= id %>" class="manager-row">
+                            <form class="manager-form" method="post" action="/manager/items/<%= id %>">
+                                <span class="manager-name"><%= item.name %></span>
+                                <label class="manager-price">
+                                    <span>Price $</span>
+                                    <input name="price" type="number" min="0" max="100" step="0.01" required
+                                           value="<%= Number(item.current_price).toFixed(2) %>" aria-label="Price for <%= item.name %>">
+                                </label>
+                                <label class="manager-available">
+                                    <input name="is_available" type="checkbox"<%= Number(item.is_available) === 1 ? ' checked' : '' %>>
+                                    <span>Available</span>
+                                </label>
+                                <button class="manager-save" type="submit">Save</button>
+                                <% if (savedId === id) { %>
+                                    <span class="manager-status" role="status">Saved</span>
+                                <% } else if (errorId === id) { %>
+                                    <span class="manager-status manager-status-error" role="alert">Enter a price from 0 to 100</span>
+                                <% } %>
+                            </form>
+                        </li>
+                    <% }); %>
+                </ul>
+            <% }); %>
+        </section>
+    </main>
+    <% } %>
+</body>
+</html>

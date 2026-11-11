@@ -1,0 +1,217 @@
+<%
+    const menuCategories = categories || [];
+    const menuItems = items || [];
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drink Menu</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/js/client.js" defer></script>
+</head>
+<body data-page="menu">
+    <header class="navbar">
+        <a class="logo" href="/" aria-label="Drink menu">Menu</a>
+        <nav class="nav-links" aria-label="Main">
+            <a class="nav-link" href="/orders">Orders</a>
+            <a class="nav-link" href="/manager">Manager</a>
+            <a href="/checkout" class="checkout-btn">
+                <span>Checkout</span>
+                <span id="cart-count" class="cart-badge" aria-label="0 items in order">0</span>
+            </a>
+        </nav>
+    </header>
+
+    <%- include('partials/kiosk-text-controls') %>
+
+    <main class="main-layout main-layout-with-sidebar">
+        <div class="center-banner">
+            <nav id="menu-category-nav" class="menu-category-nav" aria-label="Drink categories" hidden>
+                <% menuCategories.forEach(function(cat) { %>
+                    <button class="category-tab" type="button" data-category="<%= cat %>" aria-pressed="false"><%= cat %></button>
+                <% }); %>
+            </nav>
+
+            <section id="category-view" class="category-section" aria-labelledby="category-heading">
+                <p class="eyebrow">Made for your kind of sip</p>
+                <h1 id="category-heading" tabindex="-1">Choose a category</h1>
+                <div class="category-list">
+                    <% if (menuCategories.length > 0) { %>
+                        <% menuCategories.forEach(function(cat, index) {
+                            const representative = menuItems.find(function(item) { return item.category === cat; });
+                            const representativeId = representative && (representative.menu_item_id || representative.id);
+                        %>
+                            <button class="category-card cat-btn" type="button" data-category="<%= cat %>" aria-label="Browse <%= cat %>">
+                                <span class="category-name"><%= cat %></span>
+                                <% if (representativeId) { %>
+                                    <svg class="category-art" viewBox="0 0 160 190" aria-hidden="true" focusable="false">
+                                        <use href="/images/menu-drinks.svg#drink-<%= representativeId %>"></use>
+                                    </svg>
+                                <% } %>
+                                <span class="category-arrow" aria-hidden="true">→</span>
+                            </button>
+                        <% }); %>
+                    <% } else { %>
+                        <p class="no-items">No drink categories are available.</p>
+                    <% } %>
+                </div>
+            </section>
+
+            <% menuCategories.forEach(function(cat) { %>
+                <section class="category-menu-view" data-category-view="<%= cat %>" hidden aria-labelledby="heading-<%= menuCategories.indexOf(cat) %>">
+                    <button class="back-to-categories" type="button">← All categories</button>
+                    <p class="eyebrow">Explore the menu</p>
+                    <h1 id="heading-<%= menuCategories.indexOf(cat) %>" tabindex="-1"><%= cat %></h1>
+                    <div class="item-list">
+                        <% const categoryItems = menuItems.filter(function(item) { return item.category === cat; }); %>
+                        <% if (categoryItems.length > 0) { %>
+                            <% categoryItems.forEach(function(item) {
+                                const itemId = item.menu_item_id || item.id;
+                                const baseCents = Math.round((Number(item.current_price) || 0) * 100);
+                                const soldOut = Number(item.is_available) !== 1;
+                            %>
+                                <article
+                                    class="item-card<%= soldOut ? ' sold-out' : '' %>"
+                                    data-item-id="<%= itemId %>"
+                                    data-item-name="<%= item.name %>"
+                                    data-base-cents="<%= baseCents %>"
+                                    data-item-art="drink-<%= itemId %>">
+                                    <button class="item-select" type="button" aria-label="<%= soldOut ? item.name + ' is sold out' : 'Customize ' + item.name %>"<%= soldOut ? ' disabled' : '' %>>
+                                        <svg class="item-art" viewBox="0 0 160 190" role="img" aria-label="<%= item.name %> illustration" focusable="false">
+                                            <use href="/images/menu-drinks.svg#drink-<%= itemId %>"></use>
+                                        </svg>
+                                        <span class="item-info">
+                                            <span class="item-title"><%= item.name %></span>
+                                            <span class="item-desc"><%= item.description %></span>
+                                        </span>
+                                    </button>
+                                    <div class="item-footer">
+                                        <span class="item-price">$<%= (baseCents / 100).toFixed(2) %></span>
+                                        <% if (soldOut) { %>
+                                            <span class="sold-out-label">Sold out</span>
+                                        <% } else { %>
+                                            <span class="add-btn customize-label" aria-hidden="true">Customize</span>
+                                        <% } %>
+                                    </div>
+                                </article>
+                            <% }); %>
+                        <% } else { %>
+                            <p class="no-items">No drinks found in this category.</p>
+                        <% } %>
+                    </div>
+                </section>
+            <% }); %>
+        </div>
+
+        <aside class="cart-sidebar" aria-labelledby="cart-heading">
+            <div class="cart-box">
+                <h2 id="cart-heading" tabindex="-1">Your order</h2>
+                <p id="menu-cart-error" class="storage-error" role="alert" hidden>
+                    Your change could not be saved. Allow browser storage and try again.
+                </p>
+                <ul id="cart-items-list" class="cart-items-list" aria-live="polite">
+                    <li class="empty-cart-msg">Your order is empty.</li>
+                </ul>
+                <div class="cart-total-section">
+                    <span>Subtotal</span>
+                    <span id="cart-total-price">$0.00</span>
+                </div>
+                <a href="/checkout" class="proceed-checkout-btn">Review order</a>
+            </div>
+        </aside>
+    </main>
+
+    <dialog id="customization-dialog" class="customization-dialog" aria-labelledby="dialog-item-name">
+        <form id="customization-form" class="customization-form">
+            <div class="dialog-heading">
+                <div>
+                    <p class="eyebrow">Make it yours</p>
+                    <h2 id="dialog-item-name">Customize drink</h2>
+                </div>
+                <button id="close-customization" class="dialog-close" type="button" aria-label="Close customization">×</button>
+            </div>
+
+            <div class="dialog-product">
+                <svg id="dialog-art" class="dialog-art" viewBox="0 0 160 190" role="img" aria-label="Drink illustration" focusable="false">
+                    <use id="dialog-art-use" href="/images/menu-drinks.svg#drink-1"></use>
+                </svg>
+                <div class="dialog-price-copy">
+                    <span>Base price</span>
+                    <strong id="dialog-base-price">$0.00</strong>
+                </div>
+            </div>
+
+            <div class="customization-groups">
+                <div class="customization-group">
+                    <label for="sugar-level">Sugar level <span>Free</span></label>
+                    <select id="sugar-level" name="sugar" autofocus>
+                        <option value="0%">0%</option>
+                        <option value="25%">25%</option>
+                        <option value="50%">50%</option>
+                        <option value="75%">75%</option>
+                        <option value="100%" selected>100%</option>
+                    </select>
+                </div>
+                <div class="customization-group">
+                    <label for="ice-level">Ice level <span>Free</span></label>
+                    <select id="ice-level" name="ice">
+                        <option value="No ice">No ice</option>
+                        <option value="Less ice">Less ice</option>
+                        <option value="Regular ice" selected>Regular ice</option>
+                        <option value="Extra ice">Extra ice</option>
+                    </select>
+                </div>
+                <fieldset class="customization-group addon-group">
+                    <legend>Add-ons</legend>
+                    <p class="addon-helper">Choose any toppings you like. Prices are per drink.</p>
+                    <div class="addon-options">
+                        <label class="addon-option">
+                            <span><input type="checkbox" name="addons" value="boba"> Boba</span>
+                            <strong>+$0.50</strong>
+                        </label>
+                        <label class="addon-option">
+                            <span><input type="checkbox" name="addons" value="grass-jelly"> Grass jelly</span>
+                            <strong>+$0.50</strong>
+                        </label>
+                        <label class="addon-option">
+                            <span><input type="checkbox" name="addons" value="pudding"> Pudding</span>
+                            <strong>+$0.50</strong>
+                        </label>
+                        <label class="addon-option">
+                            <span><input type="checkbox" name="addons" value="aloe-vera"> Aloe vera</span>
+                            <strong>+$0.50</strong>
+                        </label>
+                        <label class="addon-option">
+                            <span><input type="checkbox" name="addons" value="lychee-jelly"> Lychee jelly</span>
+                            <strong>+$0.50</strong>
+                        </label>
+                        <label class="addon-option">
+                            <span><input type="checkbox" name="addons" value="coconut-jelly"> Coconut jelly</span>
+                            <strong>+$0.50</strong>
+                        </label>
+                        <label class="addon-option">
+                            <span><input type="checkbox" name="addons" value="crystal-boba"> Crystal boba</span>
+                            <strong>+$0.50</strong>
+                        </label>
+                        <label class="addon-option">
+                            <span><input type="checkbox" name="addons" value="cheese-foam"> Cheese foam</span>
+                            <strong>+$1.00</strong>
+                        </label>
+                    </div>
+                </fieldset>
+            </div>
+
+            <div class="dialog-total-row">
+                <span>Drink total</span>
+                <strong id="dialog-total-price">$0.00</strong>
+            </div>
+            <button class="add-to-order-btn" type="submit">Add to order</button>
+            <p id="cart-storage-error" class="storage-error" role="alert" hidden>
+                Your browser could not save the order. Allow storage for this site, then try again.
+            </p>
+        </form>
+    </dialog>
+</body>
+</html>

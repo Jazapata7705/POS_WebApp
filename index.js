@@ -1,5 +1,10 @@
 const express = require('express');
 const { Pool } = require('pg');
+const session = require('express-session');
+const PgStore = require('connect-pg-simple')(session);
+const { rateLimit } = require('express-rate-limit');
+const { scrypt, timingSafeEqual } = require('node:crypto');
+const { promisify } = require('node:util');
 require('dotenv').config();
 
 // Create express app
@@ -20,6 +25,122 @@ const pool = new Pool({
     password: process.env.PSQL_PASSWORD,
     port: process.env.PSQL_PORT,
     ssl: { rejectUnauthorized: false }
+});
+
+const appOrigin = process.env.APP_ORIGIN;
+const sessionSecret = process.env.SESSION_SECRET;
+const passwordHash = process.env.MANAGER_PASSWORD_HASH;
+
+if (!appOrigin ||
+    !/^[a-f0-9]{64}$/i.test(sessionSecret ?? '') ||
+    !/^[a-f0-9]{32}:[a-f0-9]{128}$/i.test(passwordHash ?? '')) {
+    throw new Error('Check APP_ORIGIN, SESSION_SECRET, and MANAGER_PASSWORD_HASH in .env.');
+}
+
+const appUrl = new URL(appOrigin);
+const secureCookie = appUrl.protocol === 'https:';
+if (appUrl.origin !== appOrigin ||
+    !['http:', 'https:'].includes(appUrl.protocol) ||
+    (process.env.NODE_ENV === 'production' && !secureCookie)) {
+    throw new Error('APP_ORIGIN must be the site origin. Production requires HTTPS.');
+}
+
+const [saltHex, hashHex] = passwordHash.split(':');
+const salt = Buffer.from(saltHex, 'hex');
+const expectedHash = Buffer.from(hashHex, 'hex');
+const deriveKey = promisify(scrypt);
+const managerSessionMs = 15 * 60 * 1000;
+const cookieName = 'pos.manager.sid';
+const cookieOptions = {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: secureCookie
+};
+
+app.use('/manager', (req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
+        req.get('Origin') !== appOrigin) {
+        return res.sendStatus(403);
+    }
+    next();
+});
+
+app.use('/manager', session({
+    name: cookieName,
+    secret: sessionSecret,
+    store: new PgStore({
+        pool,
+        createTableIfMissing: process.env.NODE_ENV !== 'production'
+    }),
+    resave: false,
+    saveUninitialized: false,
+    cookie: { ...cookieOptions, maxAge: managerSessionMs }
+}));
+
+function hasManagerAccess(req) {
+    return req.session?.managerUntil > Date.now();
+}
+
+function renderManagerLogin(res, status = 200, loginError = null) {
+    return res.status(status).render('manager', {
+        managerUnlocked: false,
+        loginError
+    });
+}
+
+app.get('/manager/login', (req, res) => {
+    if (hasManagerAccess(req)) return res.redirect(303, '/manager');
+    return renderManagerLogin(res);
+});
+
+const limitManagerLogin = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 5,
+    message: 'Too many sign-in attempts. Try again in 15 minutes.'
+});
+
+app.post('/manager/login', limitManagerLogin, async (req, res, next) => {
+    const password = req.body?.password;
+    if (typeof password !== 'string' ||
+        password.length === 0 ||
+        Buffer.byteLength(password, 'utf8') > 1024) {
+        return renderManagerLogin(res, 400, 'Enter a valid password.');
+    }
+
+    const hash = await deriveKey(password, salt, expectedHash.length, {
+        N: 131072, r: 8, p: 1, maxmem: 256 * 1024 * 1024
+    });
+
+    if (!timingSafeEqual(hash, expectedHash)) {
+        return renderManagerLogin(res, 401, 'Incorrect password.');
+    }
+
+    req.session.regenerate((err) => {
+        if (err) return next(err);
+        req.session.managerUntil = Date.now() + managerSessionMs;
+        req.session.save((saveErr) => {
+            if (saveErr) return next(saveErr);
+            return res.redirect(303, '/manager');
+        });
+    });
+});
+
+app.post('/manager/logout', (req, res, next) => {
+    req.session.destroy((err) => {
+        if (err) return next(err);
+        res.clearCookie(cookieName, cookieOptions);
+        return res.redirect(303, '/manager/login');
+    });
+});
+
+app.use('/manager', (req, res, next) => {
+    if (hasManagerAccess(req)) return next();
+    if (req.method === 'GET' || req.method === 'HEAD') {
+        return res.redirect(303, '/manager/login');
+    }
+    return res.status(401).send('Manager sign-in required.');
 });
 
 const { registerSalesReport } = require('./sales-report');
@@ -224,6 +345,7 @@ app.get('/manager', async (req, res) => {
     try {
         const query_res = await pool.query('SELECT * FROM menuitem ORDER BY category, menu_item_id;');
         res.render('manager', {
+            managerUnlocked: true,
             items: query_res.rows,
             savedId: Number(req.query.saved) || null,
             errorId: Number(req.query.error) || null
