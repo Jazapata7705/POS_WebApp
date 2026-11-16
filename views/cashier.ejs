@@ -48,9 +48,11 @@
         .submit-btn { background: #28a745; color: white; border: none; padding: 0.9rem; font-size: 1.15rem; font-weight: 700; border-radius: 8px; cursor: pointer; width: 100%; text-align: center; }
         .submit-btn:active { background: #218838; }
         
-        .qty-controls { display: flex; align-items: center; gap: 0.4rem; }
+        .qty-controls { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
         .qty-btn { background: #e2e8f0; border: none; padding: 0.2rem 0.5rem; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
 
+        .edit-btn { background: #dbeafe; color: #1d4ed8; padding: 0.2rem 0.6rem; margin-left: 0.3rem; }
+        /* edit button */
         /* Modal Customization Overlay */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
         .modal-content { background: #fff; padding: 1.5rem; border-radius: 10px; width: 400px; max-width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
@@ -64,6 +66,13 @@
         .modal-footer { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
         .modal-add-btn { background: #007bff; color: white; border: none; padding: 0.75rem; font-weight: bold; border-radius: 6px; cursor: pointer; flex: 1; }
         .modal-cancel-btn { background: #e2e8f0; border: none; padding: 0.75rem; font-weight: bold; border-radius: 6px; cursor: pointer; }
+
+        .search-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+        .search-bar input { flex: 1; padding: 0.7rem 0.9rem; font-size: 1rem; border: 2px solid #ccc; border-radius: 8px; background: #fff; }
+        .search-bar input:focus { outline: none; border-color: #007bff; }
+        .search-count { font-size: 0.85rem; color: #666; white-space: nowrap; }
+        .no-results { grid-column: 1 / -1; text-align: center; color: #888; padding: 2rem 0; }
+
     </style>
 </head>
 <body>
@@ -78,6 +87,11 @@
     <div class="cashier-workspace">
         <div class="menu-section">
             <h2>Behind-the-Counter POS</h2>
+            <div class="search-bar">
+                <input type="search" id="itemSearch" placeholder="Search by name or SKU  (press / to focus)"
+                    autocomplete="off" aria-label="Search menu items by name or SKU">
+                <span class="search-count" id="searchCount" aria-live="polite"></span>
+            </div>
             
             <div class="categories">
                 <button class="cat-btn active" onclick="filterCategory('all', this)">All Items</button>
@@ -91,9 +105,13 @@
                     <% 
                         const itemId = item.menu_item_id || item.id;
                         const soldOut = Number(item.is_available) !== 1;
+                        const sku = String(item.sku ?? itemId);
+
                     %>
                     <div class="item-card <%= soldOut ? 'sold-out' : '' %>" 
-                         data-category="<%= item.category || 'Uncategorized' %>" 
+                        data-category="<%= item.category || 'Uncategorized' %>" 
+                        data-name="<%= item.name %>"
+                        data-sku="<%= sku %>"
                          <% if (!soldOut) { %>
                              onclick="openCustomizeModal(<%= itemId %>, '<%= item.name.replace(/'/g, "\\'") %>', <%= item.current_price %>)"
                          <% } %>
@@ -105,6 +123,7 @@
                             <% } %>
                         </div>
                         <div class="item-price">$<%= Number(item.current_price).toFixed(2) %></div>
+                        <p class="no-results" id="noResults" hidden>No items match your search.</p>
                     </div>
                 <% }) %>
             </div>
@@ -178,78 +197,167 @@
     <script>
         let cart = [];
         let activeItemData = null;
+        let editingIndex = null;  
         
         // Initialize from server-rendered database value
         let dailyOrderCount = parseInt(document.getElementById('dailyOrderCount').innerText) || 0;
+        let activeCategory = 'all';
+        const searchInput = document.getElementById('itemSearch');
 
         function filterCategory(category, btn) {
             document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            document.querySelectorAll('.item-card').forEach(card => {
-                if (category === 'all' || card.dataset.category === category) {
-                    card.style.display = 'flex';
-                } else {
-                    card.style.display = 'none';
-                }
-            });
+            activeCategory = category;
+            searchInput.value = '';         
+            applyFilters();
         }
 
-        function openCustomizeModal(id, name, basePrice) {
-            activeItemData = { id, name, basePrice };
-            document.getElementById('modalItemName').innerText = `Customize ${name}`;
-            document.getElementById('modalSugar').value = '100%';
-            document.getElementById('modalIce').value = 'Regular ice';
-            document.querySelectorAll('input[name="modalAddon"]').forEach(cb => cb.checked = false);
-            
-            document.getElementById('customizeModal').style.display = 'flex';
+        function scoreTerm(card, t) {
+            const sku = card.dataset.sku.toLowerCase();
+            const name = card.dataset.name.toLowerCase();
+            if (sku === t) return 0;
+            if (sku.startsWith(t)) return 1;
+            if (name.startsWith(t)) return 2;
+            if (name.split(/\s+/).some(w => w.startsWith(t))) return 3;
+            return 4;
         }
+        /* makes searching by sku make exact matches appear before possible other matches Landon Ward Sprint 2*/
+        function applyFilters() {
+            const terms = searchInput.value.trim().toLowerCase().replace(/#/g, '').split(/\s+/).filter(Boolean);
+            let visible = 0;
+
+            document.querySelectorAll('.item-card').forEach(card => {
+                let show;
+                if (terms.length) {
+                    const haystack = `${card.dataset.name} ${card.dataset.sku}`.toLowerCase();
+                    show = terms.every(t => haystack.includes(t));
+                    // lower score = closer to the top; no search means back to normal order
+                    card.style.order = show ? terms.reduce((sum, t) => sum + scoreTerm(card, t), 0) : 0;
+                } else {
+                    show = activeCategory === 'all' || card.dataset.category === activeCategory;
+                    card.style.order = 0;
+                }
+                card.style.display = show ? 'flex' : 'none';
+                if (show) visible++;
+            });
+
+            document.getElementById('noResults').hidden = visible !== 0;
+            document.getElementById('searchCount').innerText =
+                terms.length ? `${visible} match${visible === 1 ? '' : 'es'}` : '';
+        }
+
+        function resetSearch() {
+            const wasSearching = searchInput.value !== '';
+            searchInput.value = '';
+            applyFilters();
+            if (wasSearching) searchInput.focus();
+        }
+
+        searchInput.addEventListener('input', applyFilters);
+
+        searchInput.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                resetSearch();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const query = searchInput.value.trim().toLowerCase().replace(/#/g, '');
+                const visible = Array.from(document.querySelectorAll('.item-card'))
+                    .filter(c => c.style.display !== 'none')
+                    .sort((a, b) => Number(a.style.order) - Number(b.style.order));
+                const exact = visible.find(c => c.dataset.sku.toLowerCase() === query);
+                const pick = exact || visible.find(c => !c.classList.contains('sold-out'));
+                if (pick && !pick.classList.contains('sold-out')) pick.click();
+            }
+        });
+
+        document.addEventListener('keydown', e => {
+            const typing = ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName);
+            const modalOpen = document.getElementById('customizeModal').style.display === 'flex';
+            if (e.key === '/' && !typing && !modalOpen) {
+                e.preventDefault();
+                searchInput.focus();
+            }
+        });
+
+        
+
+        function openCustomizeModal(id, name, basePrice, index = null) {
+            activeItemData = { id, name, basePrice };
+            editingIndex = index;
+            const line = index !== null ? cart[index] : null;
+
+            document.getElementById('modalItemName').innerText = `${line ? 'Edit' : 'Customize'} ${name}`;
+            document.getElementById('modalSugar').value = line ? line.sugar : '100%';
+            document.getElementById('modalIce').value = line ? line.ice : 'Regular ice';
+            document.querySelectorAll('input[name="modalAddon"]').forEach(cb => {
+                cb.checked = line ? line.addons.includes(cb.value) : false;
+        });
+            document.getElementById('modalConfirmBtn').innerText = line ? 'Save Changes' : 'Add to Order';
+
+        document.getElementById('customizeModal').style.display = 'flex';
+    }
+
 
         function closeCustomizeModal() {
             document.getElementById('customizeModal').style.display = 'none';
             activeItemData = null;
+            editingIndex = null;
+    }
+
+        function editItem(index) {
+            const line = cart[index];
+            if (!line) return;
+            openCustomizeModal(line.id, line.name, line.basePrice, index);
+    }
+
+    document.getElementById('modalConfirmBtn').onclick = function() {
+        if (!activeItemData) return;
+
+        const sugar = document.getElementById('modalSugar').value;
+        const ice = document.getElementById('modalIce').value;
+
+        const selectedAddons = [];
+        let addonTotal = 0;
+        document.querySelectorAll('input[name="modalAddon"]:checked').forEach(cb => {
+            const price = parseFloat(cb.dataset.price);
+            selectedAddons.push({ name: cb.value, price: price });
+            addonTotal += price;
+        });
+        const addonNames = selectedAddons.map(a => a.name);
+
+        const newLine = {
+            id: activeItemData.id,
+            name: activeItemData.name,
+            price: activeItemData.basePrice + addonTotal,
+            basePrice: activeItemData.basePrice,
+            quantity: editingIndex !== null ? cart[editingIndex].quantity : 1,
+            sugar: sugar,
+            ice: ice,
+            addons: addonNames
+        };
+
+        // When editing, take the old line out first so it can't match itself
+        if (editingIndex !== null) cart.splice(editingIndex, 1);
+
+        const existing = cart.find(i =>
+            i.id === newLine.id &&
+            i.sugar === sugar &&
+            i.ice === ice &&
+            JSON.stringify(i.addons) === JSON.stringify(addonNames)
+        );
+
+        if (existing) {
+            existing.quantity += newLine.quantity;
+        } else if (editingIndex !== null) {
+            cart.splice(editingIndex, 0, newLine);   // keep its spot in the list
+        } else {
+            cart.push(newLine);
         }
 
-        document.getElementById('modalConfirmBtn').onclick = function() {
-            if (!activeItemData) return;
-
-            const sugar = document.getElementById('modalSugar').value;
-            const ice = document.getElementById('modalIce').value;
-            
-            const selectedAddons = [];
-            let addonTotal = 0;
-            document.querySelectorAll('input[name="modalAddon"]:checked').forEach(cb => {
-                const price = parseFloat(cb.dataset.price);
-                selectedAddons.push({ name: cb.value, price: price });
-                addonTotal += price;
-            });
-
-            const unitPrice = activeItemData.basePrice + addonTotal;
-
-            const existing = cart.find(i => 
-                i.id === activeItemData.id && 
-                i.sugar === sugar && 
-                i.ice === ice && 
-                JSON.stringify(i.addons) === JSON.stringify(selectedAddons.map(a => a.name))
-            );
-
-            if (existing) {
-                existing.quantity += 1;
-            } else {
-                cart.push({
-                    id: activeItemData.id,
-                    name: activeItemData.name,
-                    price: unitPrice,
-                    basePrice: activeItemData.basePrice,
-                    quantity: 1,
-                    sugar: sugar,
-                    ice: ice,
-                    addons: selectedAddons.map(a => a.name)
-                });
-            }
-
-            renderCart();
-            closeCustomizeModal();
-        };
+        renderCart();
+        closeCustomizeModal();
+        resetSearch();
+    };
 
         function updateQty(index, delta) {
             cart[index].quantity += delta;
@@ -281,7 +389,7 @@
 
                 html += `
                     <div class="cart-row">
-                        <div>
+                        <div class="cart-row-info">
                             <strong>${item.name}</strong>
                             <div class="cart-row-details">$${Number(item.price).toFixed(2)} each (${detailsText})</div>
                         </div>
@@ -289,6 +397,7 @@
                             <button class="qty-btn" onclick="updateQty(${index}, -1)">-</button>
                             <span>${item.quantity}</span>
                             <button class="qty-btn" onclick="updateQty(${index}, 1)">+</button>
+                            <button class="qty-btn edit-btn" onclick="editItem(${index})">Edit</button>
                         </div>
                     </div>
                 `;
