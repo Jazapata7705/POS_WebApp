@@ -1,0 +1,213 @@
+<%
+    const money = value => new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+    }).format(Number(value));
+%>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Sales report</title>
+
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+
+<body>
+    <header class="navbar">
+        <span class="logo">Manager</span>
+
+        <nav class="nav-links" aria-label="Manager tools">
+            <a class="nav-link" href="/manager">
+                Manage menu
+            </a>
+
+            <a
+                class="nav-link"
+                href="/manager/sales"
+                aria-current="page"
+            >
+                Sales report
+            </a>
+        </nav>
+    </header>
+
+    <main class="sales-page">
+        <h1>Sales report</h1>
+        <p>View recorded sales for your selected dates.</p>
+
+        <form method="post" action="/manager/logout">
+            <button type="submit">Lock manager access</button>
+        </form>
+
+        <form
+            class="sales-filters"
+            method="get"
+            action="/manager/sales"
+        >
+            <label>
+                Start date
+                <input
+                    type="date"
+                    name="start"
+                    value="<%= start %>"
+                    required
+                >
+            </label>
+
+            <label>
+                End date
+                <input
+                    type="date"
+                    name="end"
+                    value="<%= end %>"
+                    required
+                >
+            </label>
+
+            <button class="proceed-checkout-btn" type="submit">
+                View report
+            </button>
+        </form>
+
+        <p>
+            Both dates are included. Dates follow the stored database
+            timestamps. Refresh to include new orders.
+        </p>
+
+        <section class="sales-metrics" aria-label="Sales summary">
+            <article>
+                <h2>Total sales</h2>
+                <strong><%= money(summary.revenue) %></strong>
+            </article>
+
+            <article>
+                <h2>Orders</h2>
+                <strong><%= summary.order_count %></strong>
+            </article>
+
+            <article>
+                <h2>Drinks sold</h2>
+                <strong><%= units %></strong>
+            </article>
+
+            <article>
+                <h2>Average order</h2>
+                <strong><%= money(summary.average_order) %></strong>
+            </article>
+        </section>
+
+        <% if (Number(summary.order_count) === 0) { %>
+            <p role="status">
+                No sales were recorded during these dates.
+                Choose a different date range.
+            </p>
+        <% } %>
+
+        <section class="sales-panel">
+            <h2>Daily sales</h2>
+
+            <p>
+                Bar lengths show sales relative to the highest-sales
+                day in this range.
+            </p>
+
+            <div
+                class="sales-chart"
+                role="img"
+                aria-label="Daily sales bar chart. Exact dates and amounts appear in the table below."
+            >
+                <% daily.forEach(day => { %>
+                    <div class="sales-chart-row">
+                        <span><%= day.day %></span>
+
+                        <div class="sales-track">
+                            <meter
+                                class="sales-bar"
+                                min="0"
+                                max="<%= maxRevenue %>"
+                                value="<%= Number(day.revenue) %>"
+                                aria-label="<%= day.day %>: <%= money(day.revenue) %>"
+                            ></meter>
+                        </div>
+
+                        <strong><%= money(day.revenue) %></strong>
+                    </div>
+                <% }); %>
+            </div>
+
+            <div class="sales-table-wrap">
+                <table>
+                    <caption>Daily sales details</caption>
+
+                    <thead>
+                        <tr>
+                            <th scope="col">Date</th>
+                            <th scope="col">Orders</th>
+                            <th scope="col">Sales</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <% daily.forEach(day => { %>
+                            <tr>
+                                <th scope="row"><%= day.day %></th>
+                                <td><%= day.order_count %></td>
+                                <td><%= money(day.revenue) %></td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="sales-panel">
+            <h2>Best-selling drinks</h2>
+
+            <div class="sales-table-wrap">
+                <table>
+                    <caption>Drinks ranked by quantity sold</caption>
+
+                    <thead>
+                        <tr>
+                            <th scope="col">Drink</th>
+                            <th scope="col">Quantity</th>
+                            <th scope="col">Line sales</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <% products.forEach(product => { %>
+                            <tr>
+                                <th scope="row"><%= product.name %></th>
+                                <td><%= product.units %></td>
+                                <td><%= money(product.revenue) %></td>
+                            </tr>
+                        <% }); %>
+
+                        <% if (!products.length) { %>
+                            <tr>
+                                <td colspan="3">
+                                    No drinks sold in this range.
+                                </td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+
+            <p>
+                Line sales use saved quantities and unit prices,
+                including topping charges recorded in those prices.
+                Total sales use saved order totals; historical
+                differences can cause these totals to differ.
+                These figures do not calculate profit, refunds,
+                or tax separately.
+            </p>
+        </section>
+    </main>
+</body>
+</html>
