@@ -5,6 +5,7 @@ const PgStore = require('connect-pg-simple')(session);
 const { rateLimit } = require('express-rate-limit');
 const { scrypt, timingSafeEqual } = require('node:crypto');
 const { promisify } = require('node:util');
+const { registerCustomerApi } = require('./customer-api');
 require('dotenv').config();
 
 // Create express app
@@ -29,12 +30,13 @@ const pool = new Pool({
 
 const appOrigin = process.env.APP_ORIGIN;
 const sessionSecret = process.env.SESSION_SECRET;
-const passwordHash = process.env.MANAGER_PASSWORD_HASH;
+const passwordHashPattern = /^[a-f0-9]{32}:[a-f0-9]{128}$/i;
 
 if (!appOrigin ||
     !/^[a-f0-9]{64}$/i.test(sessionSecret ?? '') ||
-    !/^[a-f0-9]{32}:[a-f0-9]{128}$/i.test(passwordHash ?? '')) {
-    throw new Error('Check APP_ORIGIN, SESSION_SECRET, and MANAGER_PASSWORD_HASH in .env.');
+    !passwordHashPattern.test(process.env.MANAGER_PASSWORD_HASH ?? '') ||
+    !passwordHashPattern.test(process.env.KITCHEN_PASSWORD_HASH ?? '')) {
+    throw new Error('Check APP_ORIGIN, SESSION_SECRET, MANAGER_PASSWORD_HASH, and KITCHEN_PASSWORD_HASH in .env.');
 }
 
 const appUrl = new URL(appOrigin);
@@ -45,11 +47,28 @@ if (appUrl.origin !== appOrigin ||
     throw new Error('APP_ORIGIN must be the site origin. Production requires HTTPS.');
 }
 
-const [saltHex, hashHex] = passwordHash.split(':');
-const salt = Buffer.from(saltHex, 'hex');
-const expectedHash = Buffer.from(hashHex, 'hex');
+function parsePasswordHash(value) {
+    const [saltHex, hashHex] = value.split(':');
+    return { salt: Buffer.from(saltHex, 'hex'), hash: Buffer.from(hashHex, 'hex') };
+}
+
 const deriveKey = promisify(scrypt);
-const managerSessionMs = 15 * 60 * 1000;
+// Each staff area gets its own password, sign-in page, and session length.
+const staffRoles = {
+    manager: {
+        password: parsePasswordHash(process.env.MANAGER_PASSWORD_HASH),
+        sessionMs: 15 * 60 * 1000,
+        view: 'manager',
+        allowedRoles: ['manager']
+    },
+    kitchen: {
+        password: parsePasswordHash(process.env.KITCHEN_PASSWORD_HASH),
+        sessionMs: 12 * 60 * 60 * 1000, // a kitchen screen stays signed in for a shift
+        view: 'kitchen',
+        allowedRoles: ['kitchen', 'manager'] // managers can open the kitchen, not the reverse
+    }
+};
+const staffPaths = Object.keys(staffRoles).map(role => `/${role}`);
 const cookieName = 'pos.manager.sid';
 const cookieOptions = {
     path: '/',
@@ -58,7 +77,7 @@ const cookieOptions = {
     secure: secureCookie
 };
 
-app.use('/manager', (req, res, next) => {
+app.use(staffPaths, (req, res, next) => {
     res.set('Cache-Control', 'no-store');
     if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
         req.get('Origin') !== appOrigin) {
@@ -67,7 +86,7 @@ app.use('/manager', (req, res, next) => {
     next();
 });
 
-app.use('/manager', session({
+app.use(staffPaths, session({
     name: cookieName,
     secret: sessionSecret,
     store: new PgStore({
@@ -76,72 +95,71 @@ app.use('/manager', session({
     }),
     resave: false,
     saveUninitialized: false,
-    cookie: { ...cookieOptions, maxAge: managerSessionMs }
+    cookie: { ...cookieOptions, maxAge: staffRoles.manager.sessionMs }
 }));
 
-function hasManagerAccess(req) {
-    return req.session?.managerUntil > Date.now();
-}
+for (const [role, { password: expected, sessionMs, view, allowedRoles }] of Object.entries(staffRoles)) {
+    const home = `/${role}`;
+    const untilKey = `${role}Until`;
+    const hasAccess = req => allowedRoles.some(r => req.session?.[`${r}Until`] > Date.now());
+    const renderLogin = (res, status = 200, loginError = null) =>
+        res.status(status).render(view, { [`${role}Unlocked`]: false, loginError });
 
-function renderManagerLogin(res, status = 200, loginError = null) {
-    return res.status(status).render('manager', {
-        managerUnlocked: false,
-        loginError
-    });
-}
-
-app.get('/manager/login', (req, res) => {
-    if (hasManagerAccess(req)) return res.redirect(303, '/manager');
-    return renderManagerLogin(res);
-});
-
-const limitManagerLogin = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 5,
-    message: 'Too many sign-in attempts. Try again in 15 minutes.'
-});
-
-app.post('/manager/login', limitManagerLogin, async (req, res, next) => {
-    const password = req.body?.password;
-    if (typeof password !== 'string' ||
-        password.length === 0 ||
-        Buffer.byteLength(password, 'utf8') > 1024) {
-        return renderManagerLogin(res, 400, 'Enter a valid password.');
-    }
-
-    const hash = await deriveKey(password, salt, expectedHash.length, {
-        N: 131072, r: 8, p: 1, maxmem: 256 * 1024 * 1024
+    app.get(`${home}/login`, (req, res) => {
+        if (hasAccess(req)) return res.redirect(303, home);
+        return renderLogin(res);
     });
 
-    if (!timingSafeEqual(hash, expectedHash)) {
-        return renderManagerLogin(res, 401, 'Incorrect password.');
-    }
+    // Separate limiter per role so kitchen typos never lock out the manager
+    const limitLogin = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        limit: 5,
+        message: 'Too many sign-in attempts. Try again in 15 minutes.'
+    });
 
-    req.session.regenerate((err) => {
-        if (err) return next(err);
-        req.session.managerUntil = Date.now() + managerSessionMs;
-        req.session.save((saveErr) => {
-            if (saveErr) return next(saveErr);
-            return res.redirect(303, '/manager');
+    app.post(`${home}/login`, limitLogin, async (req, res, next) => {
+        const password = req.body?.password;
+        if (typeof password !== 'string' ||
+            password.length === 0 ||
+            Buffer.byteLength(password, 'utf8') > 1024) {
+            return renderLogin(res, 400, 'Enter a valid password.');
+        }
+
+        const hash = await deriveKey(password, expected.salt, expected.hash.length, {
+            N: 131072, r: 8, p: 1, maxmem: 256 * 1024 * 1024
+        });
+
+        if (!timingSafeEqual(hash, expected.hash)) {
+            return renderLogin(res, 401, 'Incorrect password.');
+        }
+
+        req.session.regenerate((err) => {
+            if (err) return next(err);
+            req.session[untilKey] = Date.now() + sessionMs;
+            req.session.cookie.maxAge = sessionMs;
+            req.session.save((saveErr) => {
+                if (saveErr) return next(saveErr);
+                return res.redirect(303, home);
+            });
         });
     });
-});
 
-app.post('/manager/logout', (req, res, next) => {
-    req.session.destroy((err) => {
-        if (err) return next(err);
-        res.clearCookie(cookieName, cookieOptions);
-        return res.redirect(303, '/manager/login');
+    app.post(`${home}/logout`, (req, res, next) => {
+        req.session.destroy((err) => {
+            if (err) return next(err);
+            res.clearCookie(cookieName, cookieOptions);
+            return res.redirect(303, `${home}/login`);
+        });
     });
-});
 
-app.use('/manager', (req, res, next) => {
-    if (hasManagerAccess(req)) return next();
-    if (req.method === 'GET' || req.method === 'HEAD') {
-        return res.redirect(303, '/manager/login');
-    }
-    return res.status(401).send('Manager sign-in required.');
-});
+    app.use(home, (req, res, next) => {
+        if (hasAccess(req)) return next();
+        if (req.method === 'GET' || req.method === 'HEAD') {
+            return res.redirect(303, `${home}/login`);
+        }
+        return res.status(401).send('Sign-in required.');
+    });
+}
 
 const { registerSalesReport } = require('./sales-report');
 registerSalesReport(app, pool);
@@ -200,24 +218,65 @@ const ADD_ON_PRICES = {
 const GUEST_CUSTOMER_ID = 0;
 const DEFAULT_EMPLOYEE_ID = 1;
 
-// Place an order: prices are recomputed from the database, not trusted from the client
-app.post('/api/orders', async (req, res) => {
+
+// Place an order and automatically deduct inventory
+async function handleOrder(req, res, customerAccountId = null) {
+
     const lines = req.body?.items;
+
     if (!Array.isArray(lines) || lines.length === 0) {
-        return res.status(400).json({ error: 'Order has no items.' });
+        return res.status(400).json({
+            error: 'Order has no items.'
+        });
     }
 
+    // Optional (cashier checkout only): { method: 'card' } or { method: 'cash', tenderedCents }
+    const payment = req.body?.payment;
+    const paymentMethod = payment?.method ?? null;
+    const tenderedCents = paymentMethod === 'cash' ? payment.tenderedCents : null;
+
+    if (
+        (payment !== undefined && paymentMethod !== 'cash' && paymentMethod !== 'card') ||
+        (paymentMethod === 'cash' && (!Number.isInteger(tenderedCents) || tenderedCents < 0 || tenderedCents > 1000000))
+    ) {
+        return res.status(400).json({
+            error: 'Invalid payment.'
+        });
+    }
+
+    // -----------------------------------------
+    // 1. Validate incoming order information
+    // -----------------------------------------
+
     const parsed = [];
+
     for (const line of lines) {
+
         const menuItemId = Number(line?.id);
         const quantity = Number(line?.quantity);
         const addons = Array.isArray(line?.addons) ? line.addons : [];
-        if (!Number.isInteger(menuItemId) || !Number.isInteger(quantity) || quantity < 1 || quantity > 99
-            || !addons.every(id => Object.hasOwn(ADD_ON_PRICES, id))) {
-            return res.status(400).json({ error: 'Order contains an invalid item.' });
+
+        if (
+            !Number.isInteger(menuItemId) ||
+            !Number.isInteger(quantity) ||
+            quantity < 1 ||
+            quantity > 99 ||
+            !addons.every(id => Object.hasOwn(ADD_ON_PRICES, id))
+        ) {
+            return res.status(400).json({
+                error: 'Order contains an invalid item.'
+            });
         }
-        const addonCents = [...new Set(addons)].reduce((sum, id) => sum + ADD_ON_PRICES[id], 0);
-        const validSugarLevels = ['0%', '25%', '50%', '75%', '100%'];
+
+        const addonCents = [...new Set(addons)].reduce(
+            (sum, id) => sum + ADD_ON_PRICES[id],
+            0
+        );
+
+        const validSugarLevels = [
+            '0%', '25%', '50%', '75%', '100%'
+        ];
+
         const validIceLevels = [
             'No ice',
             'Less ice',
@@ -245,38 +304,189 @@ app.post('/api/orders', async (req, res) => {
         });
     }
 
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        // IDs are not auto-generated, so serialize order creation while picking the next IDs
-        await client.query('LOCK TABLE orders, orderdetail IN EXCLUSIVE MODE');
+    // -----------------------------------------
+    // 2. Combine quantities for duplicate items
+    // -----------------------------------------
 
-        const ids = [...new Set(parsed.map(line => line.menuItemId))];
+    // Example:
+    // Taro Milk Tea x2
+    // Taro Milk Tea x3
+    // 
+    // Inventory deduction = 5
+
+    const requestedByItem = new Map();
+
+    for (const line of parsed) {
+
+        requestedByItem.set(
+            line.menuItemId,
+            (requestedByItem.get(line.menuItemId) || 0) + line.quantity
+        );
+    }
+
+    // -----------------------------------------
+    // 3. Begin database transaction
+    // -----------------------------------------
+
+    const client = await pool.connect();
+
+    try {
+
+        await client.query('BEGIN');
+
+        // Preserve your existing order ID generation strategy.
+        await client.query(
+            'LOCK TABLE orders, orderdetail IN EXCLUSIVE MODE'
+        );
+
+        // -----------------------------------------
+        // 4. Retrieve item prices and availability
+        // -----------------------------------------
+
+        const ids = [...requestedByItem.keys()];
+
         const priceRes = await client.query(
-            'SELECT menu_item_id, current_price FROM menuitem WHERE menu_item_id = ANY($1) AND is_available = 1',
+            `SELECT
+                menu_item_id,
+                name,
+                current_price,
+                quantity_in_stock
+             FROM menuitem
+             WHERE menu_item_id = ANY($1)
+               AND is_available = 1
+             FOR UPDATE`,
             [ids]
         );
-        const baseCents = new Map(priceRes.rows.map(row => [row.menu_item_id, Math.round(Number(row.current_price) * 100)]));
-        if (baseCents.size !== ids.length) {
+
+        const itemMap = new Map(
+            priceRes.rows.map(item => [item.menu_item_id, item])
+        );
+
+        // Ensure every requested item exists and is available.
+        if (itemMap.size !== ids.length) {
+
             await client.query('ROLLBACK');
-            return res.status(400).json({ error: 'An item in your order is no longer available.' });
+
+            return res.status(400).json({
+                error: 'An item in your order is no longer available.'
+            });
         }
+
+        // -----------------------------------------
+        // 5. Check and deduct inventory
+        // -----------------------------------------
+
+        for (const [menuItemId, requestedQuantity] of requestedByItem) {
+
+            const item = itemMap.get(menuItemId);
+
+            const currentStock = Number(item.quantity_in_stock);
+
+            // Check whether sufficient inventory exists.
+            if (currentStock < requestedQuantity) {
+
+                await client.query('ROLLBACK');
+
+                return res.status(409).json({
+                    error: `Insufficient inventory for ${item.name}. Only ${currentStock} remaining.`
+                });
+            }
+
+            // Deduct inventory from the database.
+            await client.query(
+                `UPDATE menuitem
+                 SET quantity_in_stock = quantity_in_stock - $1
+                 WHERE menu_item_id = $2`,
+                [requestedQuantity, menuItemId]
+            );
+        }
+
+        // -----------------------------------------
+        // 6. Calculate order prices
+        // -----------------------------------------
+
+        const baseCents = new Map(
+            priceRes.rows.map(item => [
+                item.menu_item_id,
+                Math.round(Number(item.current_price) * 100)
+            ])
+        );
 
         const details = parsed.map(line => ({
             ...line,
             unitCents: baseCents.get(line.menuItemId) + line.addonCents
         }));
-        const totalCents = details.reduce((sum, line) => sum + line.unitCents * line.quantity, 0);
 
-        const orderRes = await client.query(
-            `INSERT INTO orders (order_id, customer_id, employee_id, total_cost)
-             SELECT COALESCE(MAX(order_id), 0) + 1, $1, $2, $3 FROM orders
-             RETURNING order_id`,
-            [GUEST_CUSTOMER_ID, DEFAULT_EMPLOYEE_ID, totalCents / 100]
+        const totalCents = details.reduce(
+            (sum, line) => sum + line.unitCents * line.quantity,
+            0
         );
+
+        if (paymentMethod === 'cash' && tenderedCents < totalCents) {
+
+            await client.query('ROLLBACK');
+
+            return res.status(400).json({
+                error: `Cash tendered is less than the $${(totalCents / 100).toFixed(2)} total.`
+            });
+        }
+
+        // -----------------------------------------
+        // 7. Insert order into database
+        // -----------------------------------------
+
+        const cashTendered = tenderedCents === null ? null : tenderedCents / 100;
+
+        const orderRes = customerAccountId === null
+            ? await client.query(
+                `INSERT INTO orders (
+                    order_id,
+                    customer_id,
+                    employee_id,
+                    total_cost,
+                    payment_method,
+                    cash_tendered
+                )
+                SELECT
+                    COALESCE(MAX(order_id), 0) + 1,
+                    $1, $2, $3, $4, $5
+                FROM orders
+                RETURNING order_id`,
+                [GUEST_CUSTOMER_ID, DEFAULT_EMPLOYEE_ID, totalCents / 100, paymentMethod, cashTendered]
+            )
+            : await client.query(
+                `INSERT INTO orders (
+                    order_id,
+                    customer_id,
+                    customer_account_id,
+                    employee_id,
+                    total_cost,
+                    payment_method,
+                    cash_tendered
+                )
+                SELECT
+                    COALESCE(MAX(order_id), 0) + 1,
+                    $1, $2, $3, $4, $5, $6
+                FROM orders
+                RETURNING order_id`,
+                [
+                    GUEST_CUSTOMER_ID,
+                    customerAccountId,
+                    DEFAULT_EMPLOYEE_ID,
+                    totalCents / 100,
+                    paymentMethod,
+                    cashTendered
+                ]
+            );
+
         const orderId = orderRes.rows[0].order_id;
 
+        // -----------------------------------------
+        // 8. Insert individual order details
+        // -----------------------------------------
+
         for (const line of details) {
+
             await client.query(
                 `INSERT INTO orderdetail (
                     order_detail_id,
@@ -304,16 +514,46 @@ app.post('/api/orders', async (req, res) => {
             );
         }
 
+        // -----------------------------------------
+        // 9. Commit transaction
+        // -----------------------------------------
+
         await client.query('COMMIT');
-        res.status(201).json({ orderId, totalCents });
+
+        return res.status(201).json({
+            orderId,
+            totalCents,
+            changeCents: tenderedCents === null ? null : tenderedCents - totalCents
+        });
+
     } catch (err) {
+
+        // Any failure reverses both the order and inventory changes.
         await client.query('ROLLBACK').catch(() => {});
+
         console.error('Error placing order:', err);
-        res.status(500).json({ error: 'Could not place your order. Please try again.' });
+
+        return res.status(500).json({
+            error: 'Could not place your order. Please try again.'
+        });
+
     } finally {
+
         client.release();
+
     }
+}
+
+app.post('/api/orders', (req, res) => handleOrder(req, res));
+
+registerCustomerApi(app, {
+    pool,
+    appOrigin,
+    sessionSecret,
+    secureCookie,
+    placeOrder: handleOrder
 });
+
 
 // Recent Orders Page
 app.get('/orders', async (req, res) => {
@@ -425,6 +665,80 @@ app.post('/manager/items/:id', async (req, res) => {
         res.status(500).send('Server error updating menu item.');
     }
 });
+
+// Kitchen display: open orders oldest first, polled by public/js/kitchen.js
+app.get('/kitchen', (req, res) => {
+    res.render('kitchen', { kitchenUnlocked: true });
+});
+
+app.get('/kitchen/orders', async (req, res) => {
+    const [open, recent] = await Promise.all([
+        pool.query(
+            `SELECT o.order_id,
+                    EXTRACT(EPOCH FROM LOCALTIMESTAMP - o.order_timestamp)::int AS age_seconds,
+                    o.started_at IS NOT NULL AS started,
+                    json_agg(json_build_object(
+                        'id', d.order_detail_id,
+                        'name', m.name,
+                        'quantity', d.quantity,
+                        'sugar', d.sugar_level,
+                        'ice', d.ice_level,
+                        'addons', d.addons,
+                        'done', d.completed_at IS NOT NULL
+                    ) ORDER BY d.order_detail_id) AS items
+             FROM orders o
+             JOIN orderdetail d ON d.order_id = o.order_id
+             JOIN menuitem m ON m.menu_item_id = d.menu_item_id
+             WHERE o.completed_at IS NULL
+             GROUP BY o.order_id, o.order_timestamp, o.started_at
+             ORDER BY o.order_id
+             LIMIT 100;`
+        ),
+        pool.query(
+            `SELECT o.order_id,
+                    EXTRACT(EPOCH FROM LOCALTIMESTAMP - o.completed_at)::int AS done_seconds_ago,
+                    string_agg(d.quantity || '× ' || m.name, ', ' ORDER BY d.order_detail_id) AS summary
+             FROM orders o
+             JOIN orderdetail d ON d.order_id = o.order_id
+             JOIN menuitem m ON m.menu_item_id = d.menu_item_id
+             WHERE o.completed_at > LOCALTIMESTAMP - INTERVAL '1 hour'
+             GROUP BY o.order_id, o.completed_at
+             ORDER BY o.completed_at DESC
+             LIMIT 10;`
+        )
+    ]);
+    res.json({ open: open.rows, recent: recent.rows });
+});
+
+// Each kitchen action updates one row by id: 204 when it changed, 404 when it no longer applies
+function kitchenAction(path, sql) {
+    app.post(path, async (req, res) => {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id < 1 || id > 2147483647) {
+            return res.status(400).json({ error: 'Invalid id.' });
+        }
+        const result = await pool.query(sql, [id]);
+        res.sendStatus(result.rowCount ? 204 : 404);
+    });
+}
+
+kitchenAction('/kitchen/orders/:id/start',
+    'UPDATE orders SET started_at = LOCALTIMESTAMP WHERE order_id = $1 AND completed_at IS NULL AND started_at IS NULL;');
+
+kitchenAction('/kitchen/orders/:id/complete',
+    'UPDATE orders SET completed_at = LOCALTIMESTAMP WHERE order_id = $1 AND completed_at IS NULL;');
+
+// Recall a finished order; limited to the last hour so history can't be reopened
+kitchenAction('/kitchen/orders/:id/reopen',
+    `UPDATE orders SET completed_at = NULL
+     WHERE order_id = $1 AND completed_at > LOCALTIMESTAMP - INTERVAL '1 hour';`);
+
+// Check a single drink off (or back on) while its order is still open
+kitchenAction('/kitchen/items/:id/toggle',
+    `UPDATE orderdetail d
+     SET completed_at = CASE WHEN d.completed_at IS NULL THEN LOCALTIMESTAMP END
+     FROM orders o
+     WHERE d.order_detail_id = $1 AND o.order_id = d.order_id AND o.completed_at IS NULL;`);
 
 // Cashier Behind-the-Counter Interface
 app.get('/cashier', async (req, res) => {
