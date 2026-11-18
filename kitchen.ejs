@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitchen Display</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <% if (kitchenUnlocked) { %><script src="/js/kitchen.js" defer></script><% } %>
+</head>
+<body data-page="kitchen">
+    <% if (!kitchenUnlocked) { %>
+    <%- include('partials/staff-login', { label: 'Kitchen', action: '/kitchen/login', button: 'Open kitchen display', loginError }) %>
+    <% } else { %>
+    <header class="navbar kitchen-bar">
+        <a class="logo" href="/" aria-label="Return to the POS portal">Kitchen</a>
+        <p id="kitchen-status" class="kitchen-status" role="status">Loading orders…</p>
+        <div class="nav-links">
+            <button id="kitchen-undo" class="kitchen-undo" type="button" hidden></button>
+            <button id="kitchen-sound" class="kitchen-signout" type="button" aria-pressed="true">Sound on</button>
+            <form method="post" action="/kitchen/logout">
+                <button class="nav-link kitchen-signout" type="submit">Sign out</button>
+            </form>
+        </div>
+    </header>
+
+    <main class="kitchen-page">
+        <h1 class="kitchen-heading">Open orders <span id="kitchen-count" class="cart-badge">0</span></h1>
+        <p id="kitchen-empty" class="no-items" hidden>No open orders. New orders appear here automatically.</p>
+        <ol id="kitchen-board" class="kitchen-board"></ol>
+
+        <details class="kitchen-recent">
+            <summary>Recently completed (<span id="kitchen-recent-count">0</span>)</summary>
+            <p class="kitchen-mods">Orders finished in the last hour. Recall one to put it back on the board.</p>
+            <ul id="kitchen-recent-list" class="kitchen-recent-list"></ul>
+        </details>
+    </main>
+    <% } %>
+</body>
+</html>

@@ -1,0 +1,51 @@
+<%
+    const money = value => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(Number(value));
+%>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Recent Orders</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header class="navbar">
+        <a class="logo" href="/" aria-label="Return to menu">Menu</a>
+        <nav class="nav-links" aria-label="Main">
+            <a class="nav-link" href="/orders" aria-current="page">Orders</a>
+            <a class="nav-link" href="/manager">Manager</a>
+            <a href="/checkout" class="checkout-btn">Checkout</a>
+        </nav>
+    </header>
+
+    <main class="checkout-page">
+        <section class="checkout-card" aria-labelledby="orders-heading">
+            <a class="back-to-menu" href="/">← Back to menu</a>
+            <p class="eyebrow">Store view</p>
+            <h1 id="orders-heading">Recent orders</h1>
+
+            <% if (orders.length === 0) { %>
+                <p>No orders yet.</p>
+            <% } else { %>
+                <ol class="order-list">
+                    <% orders.forEach(function(order) { %>
+                        <li class="order-row">
+                            <div class="order-row-header">
+                                <strong>Order #<%= order.order_id %></strong>
+                                <span class="order-row-time"><%= order.placed_at %></span>
+                                <strong><%= money(order.total_cost) %></strong>
+                            </div>
+                            <ul class="order-row-items">
+                                <% order.items.forEach(function(item) { %>
+                                    <li><%= item.quantity %> × <%= item.name %> <span>(<%= money(item.unit_price) %> each)</span></li>
+                                <% }); %>
+                            </ul>
+                        </li>
+                    <% }); %>
+                </ol>
+            <% } %>
+        </section>
+    </main>
+</body>
+</html>

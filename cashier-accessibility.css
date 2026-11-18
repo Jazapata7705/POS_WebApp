@@ -1,0 +1,302 @@
+body[data-page="cashier"] {
+    height: 100dvh;
+    min-height: 100dvh;
+}
+
+body[data-page="cashier"] .navbar {
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    height: auto;
+    min-height: 60px;
+    padding: 0.5rem 1rem;
+}
+
+body[data-page="cashier"] .cashier-workspace {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 0;
+}
+
+body[data-page="cashier"] .menu-section,
+body[data-page="cashier"] .cart-section {
+    min-height: 0;
+}
+
+body[data-page="cashier"] .menu-section {
+    min-width: 0;
+}
+
+body[data-page="cashier"] .item-grid {
+    min-height: 0;
+}
+
+body[data-page="cashier"] .item-card {
+    appearance: none;
+    color: inherit;
+    font: inherit;
+    width: 100%;
+}
+
+body[data-page="cashier"] .item-card-copy,
+body[data-page="cashier"] .item-name,
+body[data-page="cashier"] .stock-remaining,
+body[data-page="cashier"] .item-price {
+    display: block;
+}
+
+body[data-page="cashier"] .item-card:disabled {
+    cursor: not-allowed;
+}
+
+body[data-page="cashier"] .option-group.addon-group {
+    border: 0;
+    min-width: 0;
+    padding: 0;
+}
+
+body[data-page="cashier"] .addon-group legend {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+}
+
+body[data-page="cashier"] .cashier-accessibility-toggle,
+body[data-page="cashier"] .cashier-accessibility-panel button,
+body[data-page="cashier"] .cat-btn,
+body[data-page="cashier"] .item-card,
+body[data-page="cashier"] .qty-btn,
+body[data-page="cashier"] .submit-btn,
+body[data-page="cashier"] .modal-close,
+body[data-page="cashier"] .modal-footer button {
+    min-width: 48px;
+    min-height: 48px;
+}
+
+body[data-page="cashier"] .cashier-accessibility-toggle,
+body[data-page="cashier"] .cashier-accessibility-panel button {
+    border: 2px solid #173e57;
+    border-radius: 6px;
+    background: #e1f2ff;
+    color: #10354d;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    padding: 0.5rem 0.75rem;
+}
+
+body[data-page="cashier"] .cashier-accessibility-panel {
+    align-items: center;
+    background: #fff;
+    border: 2px solid #173e57;
+    border-radius: 8px;
+    display: flex;
+    flex: 1 0 100%;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem;
+}
+
+body[data-page="cashier"] .cashier-accessibility-panel[hidden] {
+    display: none;
+}
+
+body[data-page="cashier"] .cashier-accessibility-panel output {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    min-width: 3.5em;
+    text-align: center;
+}
+
+body[data-page="cashier"] .cashier-accessibility-label {
+    font-weight: 700;
+    margin-right: 0.25rem;
+}
+
+body[data-page="cashier"] .cashier-accessibility-panel button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+body[data-page="cashier"] .status-msg {
+    height: auto;
+    min-height: 1.2em;
+}
+
+body[data-page="cashier"] .cart-row {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+body[data-page="cashier"] .cart-row > :first-child {
+    flex: 1 1 10rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+body[data-page="cashier"] .cart-empty-message {
+    color: #444;
+    margin: 3rem 0;
+    text-align: center;
+}
+
+body[data-page="cashier"] .qty-btn {
+    font: inherit;
+    min-width: 48px;
+    min-height: 48px;
+}
+
+body[data-page="cashier"] .modal-overlay {
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+body[data-page="cashier"] .modal-overlay[hidden] {
+    display: none;
+}
+
+body[data-page="cashier"] .modal-overlay:not([hidden]) {
+    display: flex;
+}
+
+body[data-page="cashier"] .modal-content {
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    width: min(400px, 100%);
+}
+
+body[data-page="cashier"] :is(button, a, select, input):focus-visible {
+    outline: 4px solid #111;
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px #fff;
+    position: relative;
+    z-index: 1;
+}
+
+body[data-page="cashier"] .item-card:focus-visible {
+    outline-offset: -5px;
+}
+
+body[data-page="cashier"] .visually-hidden {
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+html[data-cashier-high-contrast] body[data-page="cashier"] {
+    background: #fff;
+    color: #000;
+}
+
+html[data-cashier-high-contrast] body[data-page="cashier"] :is(
+    .navbar,
+    .menu-section,
+    .cart-section,
+    .daily-tracker,
+    .item-card,
+    .cart-items,
+    .modal-content,
+    .cashier-accessibility-panel,
+    .option-group select
+) {
+    background: #fff;
+    border-color: #000;
+    color: #000;
+}
+
+html[data-cashier-high-contrast] body[data-page="cashier"] .cat-btn {
+    background: #fff;
+    border-color: #000;
+    color: #000;
+}
+
+html[data-cashier-high-contrast] body[data-page="cashier"] .cat-btn.active,
+html[data-cashier-high-contrast] body[data-page="cashier"] .submit-btn,
+html[data-cashier-high-contrast] body[data-page="cashier"] .qty-btn {
+    background: #000;
+    color: #fff;
+}
+
+html[data-cashier-high-contrast] body[data-page="cashier"] :is(
+    .item-price,
+    .stock-remaining,
+    .cart-row-details,
+    .sold-out-label,
+    .status-msg
+) {
+    color: #000 !important;
+}
+
+html[data-cashier-high-contrast] body[data-page="cashier"] .low-stock-label {
+    background: #fff4a8;
+    border-color: #000;
+    color: #000;
+}
+
+html[data-cashier-high-contrast] body[data-page="cashier"] .item-card.sold-out {
+    opacity: 1 !important;
+}
+
+html[data-cashier-high-contrast] body[data-page="cashier"] :is(.cart-row, .modal-header) {
+    border-color: #000;
+}
+
+html[data-cashier-high-contrast] body[data-page="cashier"] .cashier-accessibility-toggle,
+html[data-cashier-high-contrast] body[data-page="cashier"] .cashier-accessibility-panel button {
+    background: #000;
+    border-color: #000;
+    color: #fff;
+}
+
+html[data-cashier-high-contrast] body[data-page="cashier"] :is(button, a, select, input):focus-visible {
+    outline-color: #000;
+    box-shadow: 0 0 0 3px #ffeb00;
+}
+
+@media (max-width: 800px) {
+    body[data-page="cashier"] {
+        height: auto;
+        min-height: 100dvh;
+        overflow: auto;
+    }
+
+    body[data-page="cashier"] .cashier-workspace {
+        flex-direction: column;
+        height: auto;
+        min-height: calc(100dvh - 60px);
+        overflow: visible;
+    }
+
+    body[data-page="cashier"] .menu-section {
+        border-bottom: 2px solid #ddd;
+        border-right: 0;
+        min-height: 50vh;
+        overflow: visible;
+    }
+
+    body[data-page="cashier"] .item-grid {
+        max-height: 50vh;
+        min-height: 15rem;
+    }
+
+    body[data-page="cashier"] .cart-section {
+        max-height: none;
+        min-height: 40vh;
+        width: auto;
+    }
+
+    body[data-page="cashier"] .modal-overlay:not([hidden]) {
+        align-items: flex-start;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    body[data-page="cashier"] .item-card {
+        transition: none;
+    }
+}

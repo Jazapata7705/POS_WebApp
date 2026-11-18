@@ -1,0 +1,20 @@
+<main class="checkout-page manager-login-page">
+    <section class="checkout-card" aria-labelledby="staff-login-heading">
+        <a class="back-to-menu" href="/">← Back to the POS portal</a>
+
+        <p class="eyebrow"><%= label %> access</p>
+        <h1 id="staff-login-heading"><%= label %> sign-in</h1>
+
+        <form class="manager-login-form" method="post" action="<%= action %>">
+            <label for="password"><%= label %> password</label>
+            <input id="password" name="password" type="password"
+                autocomplete="current-password" required>
+
+            <% if (loginError) { %>
+                <p class="manager-status-error" role="alert"><%= loginError %></p>
+            <% } %>
+
+            <button class="proceed-checkout-btn" type="submit"><%= button %></button>
+        </form>
+    </section>
+</main>
