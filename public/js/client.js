@@ -161,6 +161,7 @@ function setupMenu(cart) {
     const form = document.getElementById('customization-form');
     const storageError = document.getElementById('cart-storage-error');
     let selectedDrink = null;
+    let editingIndex = null; 
     let lastCategoryButton = null;
 
     function showCategory(category, sourceButton) {
@@ -194,24 +195,55 @@ function setupMenu(cart) {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         });
     });
+    /* added to support item customization and editing Landon Ward sprint 2 */
+    const submitButton = form.querySelector('button[type="submit"]');
+    const addLabel = submitButton?.textContent;
+
+    function drinkFromCard(card) {
+        return {
+            id: card.dataset.itemId,
+            name: card.dataset.itemName,
+            baseCents: Number(card.dataset.baseCents) || 0,
+            artId: card.dataset.itemArt
+        };
+    }
+
+    function openCustomization(drink, line = null, index = null) {
+        selectedDrink = drink;
+        editingIndex = index;
+
+        form.reset();
+        document.getElementById('dialog-item-name').textContent = drink.name;
+        document.getElementById('dialog-art').setAttribute('aria-label', `${drink.name} illustration`);
+        document.getElementById('dialog-art-use').setAttribute('href', `/images/menu-drinks.svg#${drink.artId}`);
+        document.getElementById('dialog-base-price').textContent = formatMoney(drink.baseCents);
+
+        if (line) {
+            document.getElementById('sugar-level').value = line.sugar;
+            document.getElementById('ice-level').value = line.ice;
+            form.querySelectorAll('input[name="addons"]').forEach(input => {
+                input.checked = line.addons.includes(input.value);
+            });
+        }
+        if (submitButton) submitButton.textContent = line ? 'Save changes' : addLabel;
+
+        updateDialogPrice();
+        dialog.showModal();
+    }
+
+    function editLine(index) {
+        const line = cart[index];
+        if (!line) return;
+        const card = document.querySelector(`.item-card[data-item-id="${CSS.escape(line.id)}"]`);
+        // If the drink was removed or sold out since it was added, don't open the editor
+        if (!card || card.classList.contains('sold-out')) return;
+        openCustomization(drinkFromCard(card), line, index);
+    }
 
     document.querySelectorAll('.item-card').forEach(card => {
         card.addEventListener('click', () => {
             if (card.classList.contains('sold-out')) return;
-            selectedDrink = {
-                id: card.dataset.itemId,
-                name: card.dataset.itemName,
-                baseCents: Number(card.dataset.baseCents) || 0,
-                artId: card.dataset.itemArt
-            };
-
-            form.reset();
-            document.getElementById('dialog-item-name').textContent = selectedDrink.name;
-            document.getElementById('dialog-art').setAttribute('aria-label', `${selectedDrink.name} illustration`);
-            document.getElementById('dialog-art-use').setAttribute('href', `/images/menu-drinks.svg#${selectedDrink.artId}`);
-            document.getElementById('dialog-base-price').textContent = formatMoney(selectedDrink.baseCents);
-            updateDialogPrice();
-            dialog.showModal();
+            openCustomization(drinkFromCard(card));
         });
     });
 
@@ -219,12 +251,13 @@ function setupMenu(cart) {
     dialog.addEventListener('click', event => {
         if (event.target === dialog) dialog.close();
     });
+    dialog.addEventListener('close', () => { editingIndex = null; });
     form.addEventListener('change', updateDialogPrice);
 
     form.addEventListener('submit', event => {
         event.preventDefault();
         if (!selectedDrink) return;
-
+        const editedIndex = editingIndex;
         const line = {
             id: selectedDrink.id,
             name: selectedDrink.name,
@@ -232,14 +265,19 @@ function setupMenu(cart) {
             sugar: document.getElementById('sugar-level').value,
             ice: document.getElementById('ice-level').value,
             addons: Array.from(form.querySelectorAll('input[name="addons"]:checked'), input => input.value).sort(),
-            quantity: 1
+            quantity: editingIndex !== null ? cart[editingIndex].quantity : 1
         };
         const nextCart = cart.map(item => ({ ...item, addons: [...item.addons] }));
+
+        if (editingIndex !== null) nextCart.splice(editingIndex, 1);
+
         const key = configurationKey(line);
         const existingLine = nextCart.find(item => configurationKey(item) === key);
 
         if (existingLine) {
-            existingLine.quantity += 1;
+            existingLine.quantity += line.quantity;
+        } else if (editingIndex !== null) {
+            nextCart.splice(editingIndex, 0, line);   // keep its spot in the list
         } else {
             nextCart.push(line);
         }
@@ -251,9 +289,14 @@ function setupMenu(cart) {
 
         cart.splice(0, cart.length, ...nextCart);
         storageError.hidden = true;
-        renderMenuCart(cartItemsList, cartTotal, cart, changeQuantity);
+        renderMenuCart(cartItemsList, cartTotal, cart, changeQuantity, editLine);
         updateCartBadge(cart);
         dialog.close();
+        if (editedIndex !== null) {
+            const rows = cartItemsList.querySelectorAll('.cart-item-row');
+            rows[Math.min(editedIndex, rows.length - 1)]?.querySelectorAll('button')[2]?.focus();
+    }
+
     });
 
     function changeQuantity(index, delta, buttonIndex) {
@@ -276,7 +319,7 @@ function setupMenu(cart) {
         error.hidden = true;
         cart.splice(0, cart.length, ...next);
 
-        renderMenuCart(cartItemsList, cartTotal, cart, changeQuantity);
+        renderMenuCart(cartItemsList, cartTotal, cart, changeQuantity, editLine);
         updateCartBadge(cart);
 
         const rows = cartItemsList.querySelectorAll('.cart-item-row');
@@ -293,8 +336,14 @@ function setupMenu(cart) {
             selectedDrink.baseCents + addonsTotalCents(checkedAddons)
         );
     }
+    /* landon ward sprint 2 addition */
+    const editParam = new URLSearchParams(window.location.search).get('edit');
+    if (editParam !== null) {
+        history.replaceState(null, '', window.location.pathname); 
+        editLine(Number(editParam));
+    }
 
-    renderMenuCart(cartItemsList, cartTotal, cart, changeQuantity);
+    renderMenuCart(cartItemsList, cartTotal, cart, changeQuantity, editLine);
     updateCartBadge(cart);
 }
 
@@ -307,7 +356,7 @@ function updateCartBadge(cart) {
     badge.setAttribute('aria-label', `${quantity} ${quantity === 1 ? 'item' : 'items'} in order`);
 }
 
-function renderMenuCart(list, total, cart, changeQuantity) {
+function renderMenuCart(list, total, cart, changeQuantity, editLine) {
     if (!list || !total) return;
     list.replaceChildren();
 
@@ -345,26 +394,19 @@ function renderMenuCart(list, total, cart, changeQuantity) {
         const controls = document.createElement('div');
         controls.className = 'quantity-controls';
 
+        const description = `${line.name}, ${line.sugar}, ${line.ice}, ${line.addons.join(', ') || 'no add-ons'}`;
         [
-            ['-', -1, 'Decrease quantity of'],
-            ['+', 1, 'Increase quantity of'],
-            ['Remove', -line.quantity, 'Remove']
-        ].forEach(([label, delta, action], buttonIndex) =>  {
+            ['-', 'Decrease quantity of', () => changeQuantity(index, -1, 0)],
+            ['+', 'Increase quantity of', () => changeQuantity(index, 1, 1)],
+            ['Edit', 'Edit', () => editLine(index)],
+            ['Remove', 'Remove', () => changeQuantity(index, -line.quantity, 3)]
+        ].forEach(([label, action, onClick]) => {
             const button = document.createElement('button');
             button.type = 'button';
             button.textContent = label;
-
-            button.setAttribute(
-                'aria-label',
-                `${action} ${line.name}, ${line.sugar}, ${line.ice}, ${line.addons.join(', ') || 'no add-ons'}`
-            );
-
-            button.addEventListener('click', () => changeQuantity(index, delta, buttonIndex));
+            button.setAttribute('aria-label', `${action} ${description}`);
+            button.addEventListener('click', onClick);
             controls.append(button);
-
-            details.append(controls);
-            row.append(details, price);
-            list.append(row);
         });
 
         details.append(controls);
@@ -405,7 +447,7 @@ function renderCheckout(cart, confirmedOrder = null) {
     if (storageError) storageError.hidden = !cartStorageUnavailable;
 
     let orderTotalCents = 0;
-    cart.forEach(line => {
+    cart.forEach((line, index) => {
         const addonTotal = addonsTotalCents(line.addons);
         const perDrinkTotal = line.baseCents + addonTotal;
         const lineTotal = perDrinkTotal * line.quantity;
@@ -423,6 +465,14 @@ function renderCheckout(cart, confirmedOrder = null) {
         quantity.className = 'checkout-quantity';
         quantity.textContent = `Quantity: ${line.quantity}`;
         heading.append(name, quantity);
+        if (!confirmed) {
+            const edit = document.createElement('a');
+            edit.className = 'checkout-edit';
+            edit.href = `/kiosk?edit=${index}`;
+            edit.textContent = 'Edit';
+            edit.setAttribute('aria-label', `Edit ${line.name}`);
+            heading.append(edit);
+        }
 
         const choices = document.createElement('ul');
         choices.className = 'checkout-customizations';

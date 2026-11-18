@@ -306,6 +306,30 @@ p {
     transition: transform 160ms ease, box-shadow 160ms ease;
 }
 
+/* changes to editing from checkout */
+.checkout-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0.35rem 1rem;
+    border: 1px solid var(--blue-dark);
+    border-radius: 999px;
+    background: var(--soft-blue);
+    color: var(--blue-dark);
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-decoration: none;
+}
+/* sprint 2 landon changing button padding */
+.cart-row-info { flex: 1; min-width: 0; overflow-wrap: anywhere; padding-right: 0.5rem; }
+
+.checkout-edit:hover {
+    background: var(--blue-dark);
+    color: #fff;
+}
+
 .item-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(37, 35, 67, 0.1);
@@ -1477,4 +1501,283 @@ html[data-kiosk-high-contrast] #kiosk-high-contrast {
 body[data-page="menu"] .item-select:focus-visible {
     outline-offset: -4px;
     box-shadow: inset 0 0 0 7px #fff;
+}
+/* Kitchen display */
+.kitchen-bar {
+    gap: 1rem;
+}
+
+.kitchen-status {
+    margin: 0;
+    color: var(--muted);
+    font-weight: 600;
+}
+
+.kitchen-status-error {
+    color: #b3261e;
+}
+
+.kitchen-undo,
+.kitchen-signout {
+    min-height: 44px;
+    padding: 0 1rem;
+    border: 2px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    cursor: pointer;
+}
+
+.kitchen-undo {
+    border-color: var(--blue);
+    color: var(--blue-dark);
+    font-weight: 700;
+}
+
+.kitchen-page {
+    padding: clamp(0.75rem, 2vw, 1.5rem);
+}
+
+.kitchen-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 0 1rem;
+    font-size: 1.4rem;
+}
+
+.kitchen-heading .cart-badge {
+    background: var(--pink);
+    color: #fff;
+}
+
+.kitchen-board {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+    gap: 1rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.kitchen-ticket {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--line);
+    border-top: 8px solid var(--blue);
+    border-radius: 14px;
+    background: var(--surface);
+    box-shadow: 0 8px 24px rgba(48, 34, 42, 0.06);
+}
+
+.kitchen-ticket[data-age="warn"] {
+    border-top-color: #e0a100;
+}
+
+.kitchen-ticket[data-age="late"] {
+    border-top-color: #c62828;
+    background: #fff5f5;
+}
+
+.kitchen-ticket-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 0.8rem 1rem 0.4rem;
+}
+
+.kitchen-ticket-head h2 {
+    margin: 0;
+    font-size: 1.6rem;
+}
+
+.kitchen-age {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+
+.kitchen-ticket[data-age="late"] .kitchen-age {
+    color: #b3261e;
+}
+
+.kitchen-items {
+    flex: 1;
+    margin: 0;
+    padding: 0 1rem 0.8rem;
+    list-style: none;
+    font-size: 1.1rem;
+}
+
+.kitchen-items > li {
+    border-bottom: 1px solid var(--line);
+}
+
+.kitchen-item {
+    width: 100%;
+    min-height: 48px;
+    padding: 0.5rem 0.25rem;
+    border: 0;
+    background: none;
+    color: inherit;
+    font-size: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.kitchen-item[aria-pressed="true"] {
+    color: var(--muted);
+    text-decoration: line-through;
+}
+
+.kitchen-item[aria-pressed="true"]::before {
+    content: "✓ ";
+    color: #2e7d32;
+    font-weight: 800;
+}
+
+.kitchen-qty {
+    font-size: 1.2rem;
+}
+
+.kitchen-mods {
+    display: block;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+.kitchen-actions {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0 1rem 1rem;
+}
+
+.kitchen-start {
+    flex: 1;
+    min-height: 64px;
+    border: 2px solid var(--blue);
+    border-radius: 12px;
+    background: var(--soft-blue);
+    color: var(--blue-dark);
+    font-size: 1.2rem;
+    font-weight: 800;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.kitchen-done {
+    flex: 2;
+    min-height: 64px;
+    border: 0;
+    border-radius: 12px;
+    background: #2e7d32;
+    color: #fff;
+    font-size: 1.3rem;
+    font-weight: 800;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.kitchen-done:hover {
+    background: #1b5e20;
+}
+
+.kitchen-done:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+@media (max-width: 520px) {
+    .kitchen-bar {
+        flex-wrap: wrap;
+    }
+}
+
+.kitchen-ticket-head h2 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.kitchen-badge {
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: var(--pink);
+    color: #fff;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+}
+
+.kitchen-badge-progress {
+    background: var(--blue-dark);
+}
+
+.kitchen-progress {
+    margin: 0;
+    padding: 0 1rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-weight: 700;
+}
+
+.kitchen-ticket.kitchen-started:not([data-age]) {
+    border-top-color: var(--blue-dark);
+}
+
+.kitchen-new {
+    animation: kitchen-flash 1s ease-in-out 3;
+}
+
+@keyframes kitchen-flash {
+    50% { box-shadow: 0 0 0 6px var(--pink); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .kitchen-new {
+        animation: none;
+        box-shadow: 0 0 0 4px var(--pink);
+    }
+}
+
+.kitchen-recent {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--surface);
+}
+
+.kitchen-recent summary {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.kitchen-recent-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.kitchen-recent-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    border-top: 1px solid var(--line);
+}
+
+/* customer view buttons editing spacing */
+.main-layout-with-sidebar {
+    grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+.cart-item-row .quantity-controls {
+    gap: 6px;
+}
+
+.cart-item-row .quantity-controls button {
+    padding-inline: 10px;
 }

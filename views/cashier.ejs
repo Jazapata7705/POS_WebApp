@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,26 +8,26 @@
     <link rel="stylesheet" href="/css/style.css">
     <style>
         body { margin: 0; font-family: system-ui, sans-serif; background: #f4f6f8; color: #111; display: flex; flex-direction: column; height: 100vh; overflow: hidden; touch-action: manipulation; }
-        
+
         /* Top Navigation Bar */
         .navbar { display: flex; justify-content: space-between; align-items: center; padding: 0 1.5rem; height: 60px; background: #fff; border-bottom: 1px solid #ddd; }
         .logo { font-weight: bold; font-size: 1.1rem; text-decoration: none; color: #111; }
-        
+
         /* Daily Orders Tracker in Navbar */
         .daily-tracker { font-size: 0.95rem; font-weight: 600; color: #444; background: #f1f3f5; padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid #dcdfe6; }
-        
+
         /* Cashier Workspace Layout */
         .cashier-workspace { display: flex; flex: 1; height: calc(100vh - 60px); overflow: hidden; }
         .menu-section { flex: 1; display: flex; flex-direction: column; padding: 1.5rem; border-right: 2px solid #ddd; background: #fff; overflow: hidden; }
-        
+
         /* Reduced width Current Order panel */
         .cart-section { width: 360px; display: flex; flex-direction: column; background: #fff; padding: 1.25rem; box-shadow: -4px 0 15px rgba(0,0,0,0.05); }
-        
+
         /* Category Navigation Bar */
         .categories { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.5rem; margin-bottom: 1rem; }
         .cat-btn { padding: 0.6rem 1rem; font-size: 0.95rem; font-weight: 600; border: 2px solid #ccc; background: #f8f9fa; border-radius: 8px; cursor: pointer; white-space: nowrap; }
         .cat-btn.active { background: #007bff; color: white; border-color: #006fe6; }
-        
+
         /* Text-only Item Grid */
         .item-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 0.75rem; overflow-y: auto; flex: 1; padding-right: 0.25rem; }
         .item-card { background: #fafbfc; border: 2px solid #e1e4e8; border-radius: 8px; padding: 0.85rem; text-align: left; cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; min-height: 85px; transition: transform 0.1s, background 0.1s; }
@@ -35,24 +36,50 @@
         .item-price { font-weight: 600; color: #28a745; font-size: 0.95rem; }
         .sold-out-label { color: #dc3545; font-size: 0.75rem; font-weight: bold; }
 
+        /* Low-stock indicators */
+        .low-stock-label {
+            color: #856404;
+            background: #fff3cd;
+            border: 1px solid #ffe08a;
+            border-radius: 4px;
+            display: inline-block;
+            padding: 0.15rem 0.4rem;
+            margin-top: 0.3rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .stock-remaining {
+            color: #666;
+            font-size: 0.75rem;
+            margin-top: 0.2rem;
+        }
+
+        .item-card.sold-out {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         /* Cart & Checkout Panel */
         .cart-items { flex: 1; overflow-y: auto; border: 1px solid #e1e4e8; border-radius: 8px; margin-bottom: 1rem; padding: 0.75rem; background: #fafbfc; }
         .cart-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 0.6rem 0; border-bottom: 1px solid #eee; font-size: 0.9rem; }
         .cart-row-details { font-size: 0.75rem; color: #666; margin-top: 0.15rem; }
-        
+
         .totals-box { font-size: 1.15rem; font-weight: 700; display: flex; justify-content: space-between; margin-bottom: 0.5rem; padding-top: 0.5rem; border-top: 2px solid #ddd; }
-        
+
         /* Small Status Feedback Message */
         .status-msg { font-size: 0.8rem; color: #28a745; text-align: center; height: 1.2rem; margin-bottom: 0.5rem; font-weight: 600; }
 
         .submit-btn { background: #28a745; color: white; border: none; padding: 0.9rem; font-size: 1.15rem; font-weight: 700; border-radius: 8px; cursor: pointer; width: 100%; text-align: center; }
         .submit-btn:active { background: #218838; }
-        
-        .qty-controls { display: flex; align-items: center; gap: 0.4rem; }
+        .qty-controls { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; }
         .qty-btn { background: #e2e8f0; border: none; padding: 0.2rem 0.5rem; font-weight: bold; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
 
+        .edit-btn { background: #dbeafe; color: #1d4ed8; padding: 0.2rem 0.6rem; margin-left: 0.3rem; }
+
         /* Modal Customization Overlay */
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay:not([hidden]) { display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-overlay[hidden] { display: none !important; }
         .modal-content { background: #fff; padding: 1.5rem; border-radius: 10px; width: 400px; max-width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
         .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid #eee; padding-bottom: 0.5rem; }
         .modal-close { background: none; border: none; font-size: 1.25rem; font-weight: bold; cursor: pointer; }
@@ -64,77 +91,153 @@
         .modal-footer { display: flex; gap: 0.75rem; margin-top: 1.5rem; }
         .modal-add-btn { background: #007bff; color: white; border: none; padding: 0.75rem; font-weight: bold; border-radius: 6px; cursor: pointer; flex: 1; }
         .modal-cancel-btn { background: #e2e8f0; border: none; padding: 0.75rem; font-weight: bold; border-radius: 6px; cursor: pointer; }
+
+        /* Payment dialog */
+        .payment-dialog { border: none; padding: 0; background: transparent; width: 400px; max-width: 90%; }
+        .payment-dialog .modal-content { width: auto; max-width: none; }
+        .payment-dialog::backdrop { background: rgba(0,0,0,0.5); }
+        .payment-due { font-size: 1.6rem; font-weight: 800; text-align: center; margin: 0 0 1rem; }
+        .payment-methods { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem; }
+        .payment-methods button { padding: 0.8rem; font-size: 1rem; font-weight: 700; border: 2px solid #ccc; background: #f8f9fa; border-radius: 8px; cursor: pointer; }
+        .payment-methods button[aria-pressed="true"] { background: #007bff; color: #fff; border-color: #006fe6; }
+        .cash-input { width: 100%; box-sizing: border-box; padding: 0.6rem; font-size: 1.3rem; border: 1px solid #ccc; border-radius: 6px; }
+        .quick-cash { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem; }
+        .quick-cash button { flex: 1; padding: 0.5rem; font-weight: 700; border: 1px solid #ccc; background: #f8f9fa; border-radius: 6px; cursor: pointer; }
+        .change-due { font-size: 1.15rem; font-weight: 700; margin-top: 0.75rem; }
+        .payment-error { color: #dc3545; font-weight: 600; min-height: 1.2rem; margin-top: 0.5rem; }
+
+        .search-bar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+        .search-bar input { flex: 1; padding: 0.7rem 0.9rem; font-size: 1rem; border: 2px solid #ccc; border-radius: 8px; background: #fff; }
+        .search-bar input:focus { outline: none; border-color: #007bff; }
+        .search-count { font-size: 0.85rem; color: #666; white-space: nowrap; }
+        .no-results { grid-column: 1 / -1; text-align: center; color: #888; padding: 2rem 0; }
     </style>
+    <link rel="stylesheet" href="/css/cashier-accessibility.css">
 </head>
-<body>
+<body data-page="cashier">
     <!-- Top Navigation Bar with Dynamic Database Daily Orders Tracker -->
     <header class="navbar">
         <a class="logo" href="/" aria-label="Return to menu">Menu — <%= vendor %></a>
         <div class="daily-tracker">
             Total Orders Today: <span id="dailyOrderCount"><%= todayCount %></span>
         </div>
+        <button type="button" class="cashier-accessibility-toggle" id="cashier-accessibility-toggle"
+                aria-expanded="false" aria-controls="cashier-accessibility-panel">
+            Accessibility
+        </button>
+        <div class="cashier-accessibility-panel" id="cashier-accessibility-panel" role="group"
+             aria-label="Cashier accessibility settings" hidden>
+            <span class="cashier-accessibility-label">Text size</span>
+            <button type="button" id="cashier-text-decrease" aria-label="Decrease text size" disabled>A−</button>
+            <output id="cashier-text-size" aria-live="polite" aria-atomic="true">100%</output>
+            <button type="button" id="cashier-text-increase" aria-label="Increase text size">A+</button>
+            <button type="button" id="cashier-contrast-toggle" aria-pressed="false">High contrast</button>
+        </div>
     </header>
 
     <div class="cashier-workspace">
         <div class="menu-section">
             <h2>Behind-the-Counter POS</h2>
-            
-            <div class="categories">
-                <button class="cat-btn active" onclick="filterCategory('all', this)">All Items</button>
-                <% categories.forEach(cat => { %>
-                    <button class="cat-btn" onclick="filterCategory('<%= cat %>', this)"><%= cat %></button>
-                <% }) %>
+            <div class="search-bar">
+                <input type="search" id="itemSearch" placeholder="Search by name or SKU  (press / to focus)"
+                    autocomplete="off" aria-label="Search menu items by name or SKU">
+                <span class="search-count" id="searchCount" aria-live="polite"></span>
             </div>
+            <nav class="categories" aria-label="Drink categories">
+                <button type="button" class="cat-btn active" data-category="all" aria-pressed="true">All Items</button>
+<% categories.forEach(cat => { %>
+                    <button type="button" class="cat-btn" data-category="<%= cat %>" aria-pressed="false"><%= cat %></button>
+<% }) %>
+            </nav>
 
-            <div class="item-grid" id="itemGrid">
-                <% items.forEach(item => { %>
-                    <% 
+            <div class="item-grid" id="itemGrid" role="group" aria-label="Available drinks">
+<% items.forEach(item => { %>
+<%
                         const itemId = item.menu_item_id || item.id;
-                        const soldOut = Number(item.is_available) !== 1;
+                        const stock = Number(item.quantity_in_stock);
+                        const threshold = Number(item.low_stock_threshold);
+                        const soldOut = Number(item.is_available) !== 1 || stock <= 0;
+                        const lowStock = !soldOut && stock <= threshold;
+                        const sku = String(item.sku ?? itemId);
                     %>
-                    <div class="item-card <%= soldOut ? 'sold-out' : '' %>" 
-                         data-category="<%= item.category || 'Uncategorized' %>" 
-                         <% if (!soldOut) { %>
-                             onclick="openCustomizeModal(<%= itemId %>, '<%= item.name.replace(/'/g, "\\'") %>', <%= item.current_price %>)"
-                         <% } %>
-                         style="<%= soldOut ? 'opacity: 0.5; cursor: not-allowed;' : '' %>">
-                        <div>
-                            <div class="item-name"><%= item.name %></div>
-                            <% if (soldOut) { %>
+                    <button type="button"
+                        class="item-card <%= soldOut ? 'sold-out' : '' %>"
+                        data-category="<%= item.category || 'Uncategorized' %>"
+                        data-item-id="<%= itemId %>"
+                        data-item-name="<%= item.name %>"
+                        data-item-price="<%= Number(item.current_price) %>"
+                        data-name="<%= item.name %>"
+                        data-sku="<%= sku %>"
+<%= soldOut ? 'disabled' : '' %>
+                        style="<%= soldOut ? 'opacity: 0.5; cursor: not-allowed;' : '' %>">
+                        <span class="item-card-copy">
+                            <span class="item-name"><%= item.name %></span>
+<% if (soldOut) { %>
                                 <span class="sold-out-label">Sold out</span>
-                            <% } %>
-                        </div>
-                        <div class="item-price">$<%= Number(item.current_price).toFixed(2) %></div>
-                    </div>
-                <% }) %>
+<% } else if (lowStock) { %>
+                                <span class="low-stock-label">⚠ Low stock</span>
+                                <span class="stock-remaining">
+                                    Only <%= stock %> remaining
+                                </span>
+<% } %>
+                        </span>
+                        <span class="item-price">$<%= Number(item.current_price).toFixed(2) %></span>
+                    </button>
+<% }) %>
+                <p class="no-results" id="noResults" hidden>No items match your search.</p>
             </div>
         </div>
 
         <!-- Reduced width Current Order panel -->
         <div class="cart-section">
             <h3>Current Order</h3>
-            <div class="cart-items" id="cartList">
-                <p style="color: #888; text-align: center; margin-top: 3rem;">Tap items on the left to build order</p>
+            <div class="cart-items" id="cartList" role="list" aria-label="Current order items">
+                <div class="cart-empty-message" role="listitem">Select a drink to build this order.</div>
             </div>
-            
+            <div class="visually-hidden" id="cartLiveRegion" role="status" aria-live="polite" aria-atomic="true"></div>
             <div class="totals-box">
                 <span>Total:</span>
                 <span id="cartTotal">$0.00</span>
             </div>
-
             <!-- Small inline status feedback instead of browser alert boxes -->
-            <div class="status-msg" id="statusMessage"></div>
-            
-            <button class="submit-btn" onclick="submitOrder()">Submit Order</button>
+            <div class="status-msg" id="statusMessage" role="status" aria-live="polite" aria-atomic="true"></div>
+            <button type="button" class="submit-btn" onclick="openPayment()">Checkout</button>
         </div>
     </div>
 
+    <!-- Payment Dialog (native dialog: focus trap + Escape handled by the browser) -->
+    <dialog class="payment-dialog" id="paymentDialog" aria-labelledby="paymentTitle">
+        <form class="modal-content" id="paymentForm" novalidate>
+            <div class="modal-header">
+                <h3 id="paymentTitle" style="margin: 0;">Payment</h3>
+                <button type="button" class="modal-close" aria-label="Cancel payment" onclick="closePayment()">×</button>
+            </div>
+            <p class="payment-due">Amount due: <span id="paymentDue">$0.00</span></p>
+            <div class="payment-methods" role="group" aria-label="Payment method">
+                <button type="button" data-method="cash" aria-pressed="true">Cash</button>
+                <button type="button" data-method="card" aria-pressed="false">Card</button>
+            </div>
+            <div id="cashPanel">
+                <label for="cashTendered" style="font-weight: 600;">Cash received</label>
+                <input class="cash-input" id="cashTendered" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00">
+                <div class="quick-cash" id="quickCash" aria-label="Quick cash amounts"></div>
+                <div class="change-due" aria-live="polite">Change due: <span id="changeDue">—</span></div>
+            </div>
+            <p id="cardPanel" hidden>Ask the customer to insert, tap, or swipe their card on the reader, then press Charge Card.</p>
+            <div class="payment-error" id="paymentError" role="alert"></div>
+            <div class="modal-footer">
+                <button type="button" class="modal-cancel-btn" onclick="closePayment()">Cancel</button>
+                <button type="submit" class="modal-add-btn" id="paymentSubmit">Complete Cash Sale</button>
+            </div>
+        </form>
+    </dialog>
+
     <!-- Customization Modal Popup -->
-    <div class="modal-overlay" id="customizeModal">
-        <div class="modal-content">
+    <div class="modal-overlay" id="customizeModal" hidden>
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="modalItemName" tabindex="-1">
             <div class="modal-header">
                 <h3 id="modalItemName" style="margin: 0;">Customize Item</h3>
-                <button class="modal-close" onclick="closeCustomizeModal()">×</button>
+                <button type="button" class="modal-close" aria-label="Close customization" onclick="closeCustomizeModal()">×</button>
             </div>
             <div class="option-group">
                 <label for="modalSugar">Sugar Level</label>
@@ -155,8 +258,8 @@
                     <option value="Extra ice">Extra ice</option>
                 </select>
             </div>
-            <div class="option-group">
-                <label>Add-ons</label>
+            <fieldset class="option-group addon-group">
+                <legend>Add-ons</legend>
                 <div class="addons-grid">
                     <label class="addon-option"><input type="checkbox" name="modalAddon" value="boba" data-price="0.50"> Boba (+$0.50)</label>
                     <label class="addon-option"><input type="checkbox" name="modalAddon" value="grass-jelly" data-price="0.50"> Grass Jelly (+$0.50)</label>
@@ -167,10 +270,10 @@
                     <label class="addon-option"><input type="checkbox" name="modalAddon" value="crystal-boba" data-price="0.50"> Crystal Boba (+$0.50)</label>
                     <label class="addon-option"><input type="checkbox" name="modalAddon" value="cheese-foam" data-price="1.00"> Cheese Foam (+$1.00)</label>
                 </div>
-            </div>
+            </fieldset>
             <div class="modal-footer">
-                <button class="modal-cancel-btn" onclick="closeCustomizeModal()">Cancel</button>
-                <button class="modal-add-btn" id="modalConfirmBtn">Add to Order</button>
+                <button type="button" class="modal-cancel-btn" onclick="closeCustomizeModal()">Cancel</button>
+                <button type="button" class="modal-add-btn" id="modalConfirmBtn">Add to Order</button>
             </div>
         </div>
     </div>
@@ -178,35 +281,185 @@
     <script>
         let cart = [];
         let activeItemData = null;
-        
+        let modalTrigger = null;
+        let editingIndex = null;
+
+        const modalOverlay = document.getElementById('customizeModal');
+        const modalDialog = modalOverlay.querySelector('.modal-content');
+
         // Initialize from server-rendered database value
         let dailyOrderCount = parseInt(document.getElementById('dailyOrderCount').innerText) || 0;
+        let activeCategory = 'all';
+        const searchInput = document.getElementById('itemSearch');
 
         function filterCategory(category, btn) {
-            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            document.querySelectorAll('.item-card').forEach(card => {
-                if (category === 'all' || card.dataset.category === category) {
-                    card.style.display = 'flex';
-                } else {
-                    card.style.display = 'none';
-                }
+            document.querySelectorAll('.cat-btn').forEach(b => {
+                b.classList.toggle('active', b === btn);
+                b.setAttribute('aria-pressed', String(b === btn));
             });
+            activeCategory = category;
+            searchInput.value = '';
+            applyFilters();
         }
 
-        function openCustomizeModal(id, name, basePrice) {
+        document.querySelector('nav.categories').addEventListener('click', event => {
+            const button = event.target.closest('.cat-btn');
+            if (button) filterCategory(button.dataset.category, button);
+        });
+
+        document.getElementById('itemGrid').addEventListener('click', event => {
+            const target = event.target instanceof Element ? event.target : event.target.parentElement;
+            const card = target?.closest('.item-card:not(:disabled)');
+            if (!card) return;
+
+            openCustomizeModal(
+                Number(card.dataset.itemId),
+                card.dataset.itemName,
+                Number(card.dataset.itemPrice),
+                null,
+                card
+            );
+        });
+
+        function scoreTerm(card, t) {
+            const sku = (card.dataset.sku || '').toLowerCase();
+            const name = (card.dataset.name || '').toLowerCase();
+            if (sku === t) return 0;
+            if (sku.startsWith(t)) return 1;
+            if (name.startsWith(t)) return 2;
+            if (name.split(/\s+/).some(w => w.startsWith(t))) return 3;
+            return 4;
+        }
+
+        /* makes searching by sku make exact matches appear before possible other matches Landon Ward Sprint 2 */
+        function applyFilters() {
+            const terms = searchInput.value.trim().toLowerCase().replace(/#/g, '').split(/\s+/).filter(Boolean);
+            let visible = 0;
+
+            document.querySelectorAll('.item-card').forEach(card => {
+                let show;
+                if (terms.length) {
+                    const haystack = `${card.dataset.name} ${card.dataset.sku}`.toLowerCase();
+                    show = terms.every(t => haystack.includes(t));
+                    // lower score = closer to the top; no search means back to normal order
+                    card.style.order = show ? terms.reduce((sum, t) => sum + scoreTerm(card, t), 0) : 0;
+                } else {
+                    show = activeCategory === 'all' || card.dataset.category === activeCategory;
+                    card.style.order = 0;
+                }
+                card.hidden = !show;
+                card.style.display = show ? 'flex' : 'none';
+                if (show) visible++;
+            });
+
+            document.getElementById('noResults').hidden = visible !== 0;
+            document.getElementById('searchCount').innerText =
+                terms.length ? `${visible} match${visible === 1 ? '' : 'es'}` : '';
+        }
+
+        function resetSearch() {
+            const wasSearching = searchInput.value !== '';
+            searchInput.value = '';
+            applyFilters();
+            if (wasSearching) searchInput.focus();
+        }
+
+        searchInput.addEventListener('input', applyFilters);
+
+        searchInput.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                resetSearch();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                const query = searchInput.value.trim().toLowerCase().replace(/#/g, '');
+                const visible = Array.from(document.querySelectorAll('.item-card'))
+                    .filter(c => c.style.display !== 'none')
+                    .sort((a, b) => Number(a.style.order) - Number(b.style.order));
+
+                const exact = visible.find(c => c.dataset.sku.toLowerCase() === query);
+                const pick = exact || visible.find(c => !c.classList.contains('sold-out'));
+                if (pick && !pick.classList.contains('sold-out')) pick.click();
+            }
+        });
+
+        document.addEventListener('keydown', e => {
+            const typing = ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName);
+            const modalOpen = !modalOverlay.hidden || paymentDialog.open;
+            if (e.key === '/' && !typing && !modalOpen) {
+                e.preventDefault();
+                searchInput.focus();
+            }
+        });
+
+        function openCustomizeModal(id, name, basePrice, index = null, trigger = null) {
             activeItemData = { id, name, basePrice };
-            document.getElementById('modalItemName').innerText = `Customize ${name}`;
-            document.getElementById('modalSugar').value = '100%';
-            document.getElementById('modalIce').value = 'Regular ice';
-            document.querySelectorAll('input[name="modalAddon"]').forEach(cb => cb.checked = false);
-            
-            document.getElementById('customizeModal').style.display = 'flex';
+            editingIndex = index;
+            modalTrigger = trigger || document.activeElement;
+
+            const line = index !== null ? cart[index] : null;
+
+            document.getElementById('modalItemName').innerText = `${line ? 'Edit' : 'Customize'} ${name}`;
+            document.getElementById('modalSugar').value = line ? line.sugar : '100%';
+            document.getElementById('modalIce').value = line ? line.ice : 'Regular ice';
+
+            document.querySelectorAll('input[name="modalAddon"]').forEach(cb => {
+                cb.checked = line ? line.addons.includes(cb.value) : false;
+            });
+
+            document.getElementById('modalConfirmBtn').innerText = line ? 'Save Changes' : 'Add to Order';
+
+            modalOverlay.hidden = false;
+            document.getElementById('modalSugar').focus();
         }
 
         function closeCustomizeModal() {
-            document.getElementById('customizeModal').style.display = 'none';
+            modalOverlay.hidden = true;
             activeItemData = null;
+            editingIndex = null;
+            if (modalTrigger?.isConnected) modalTrigger.focus();
+            modalTrigger = null;
+        }
+
+        modalDialog.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                event.stopPropagation();
+                closeCustomizeModal();
+                return;
+            }
+
+            if (event.key !== 'Tab') return;
+
+            const focusable = [...modalDialog.querySelectorAll(
+                'button:not(:disabled), select:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])'
+            )].filter(element => !element.hidden);
+
+            if (focusable.length === 0) {
+                event.preventDefault();
+                modalDialog.focus();
+                return;
+            }
+
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+
+            if (event.shiftKey && (document.activeElement === first || !modalDialog.contains(document.activeElement))) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && (document.activeElement === last || !modalDialog.contains(document.activeElement))) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
+
+        modalOverlay.addEventListener('click', event => {
+            if (event.target === modalOverlay) closeCustomizeModal();
+        });
+
+        function editItem(index, trigger = null) {
+            const line = cart[index];
+            if (!line) return;
+            openCustomizeModal(line.id, line.name, line.basePrice, index, trigger);
         }
 
         document.getElementById('modalConfirmBtn').onclick = function() {
@@ -214,41 +467,47 @@
 
             const sugar = document.getElementById('modalSugar').value;
             const ice = document.getElementById('modalIce').value;
-            
+
             const selectedAddons = [];
             let addonTotal = 0;
+
             document.querySelectorAll('input[name="modalAddon"]:checked').forEach(cb => {
                 const price = parseFloat(cb.dataset.price);
-                selectedAddons.push({ name: cb.value, price: price });
+                selectedAddons.push({ name: cb.value, price });
                 addonTotal += price;
             });
 
-            const unitPrice = activeItemData.basePrice + addonTotal;
+            const addonNames = selectedAddons.map(a => a.name);
 
-            const existing = cart.find(i => 
-                i.id === activeItemData.id && 
-                i.sugar === sugar && 
-                i.ice === ice && 
-                JSON.stringify(i.addons) === JSON.stringify(selectedAddons.map(a => a.name))
+            const newLine = {
+                id: activeItemData.id,
+                name: activeItemData.name,
+                price: activeItemData.basePrice + addonTotal,
+                basePrice: activeItemData.basePrice,
+                quantity: editingIndex !== null ? cart[editingIndex].quantity : 1,
+                sugar,
+                ice,
+                addons: addonNames
+            };
+
+            if (editingIndex !== null) cart.splice(editingIndex, 1);
+
+            const existing = cart.find(i =>
+                i.id === newLine.id && i.sugar === sugar && i.ice === ice &&
+                JSON.stringify(i.addons) === JSON.stringify(addonNames)
             );
 
             if (existing) {
-                existing.quantity += 1;
+                existing.quantity += newLine.quantity;
+            } else if (editingIndex !== null) {
+                cart.splice(editingIndex, 0, newLine);
             } else {
-                cart.push({
-                    id: activeItemData.id,
-                    name: activeItemData.name,
-                    price: unitPrice,
-                    basePrice: activeItemData.basePrice,
-                    quantity: 1,
-                    sugar: sugar,
-                    ice: ice,
-                    addons: selectedAddons.map(a => a.name)
-                });
+                cart.push(newLine);
             }
 
             renderCart();
             closeCustomizeModal();
+            resetSearch();
         };
 
         function updateQty(index, delta) {
@@ -262,83 +521,215 @@
         function renderCart() {
             const listEl = document.getElementById('cartList');
             const totalEl = document.getElementById('cartTotal');
+            const liveRegion = document.getElementById('cartLiveRegion');
+
             if (cart.length === 0) {
-                listEl.innerHTML = '<p style="color: #888; text-align: center; margin-top: 3rem;">Tap items on the left to build order</p>';
+                listEl.innerHTML = '<div class="cart-empty-message" role="listitem">Select a drink to build this order.</div>';
                 totalEl.innerText = '$0.00';
+                liveRegion.textContent = 'Current order is empty.';
                 return;
             }
 
             let html = '';
             let total = 0;
+
             cart.forEach((item, index) => {
                 const itemTotal = item.price * item.quantity;
                 total += itemTotal;
-                
+
                 let detailsText = `${item.sugar}, ${item.ice}`;
                 if (item.addons && item.addons.length > 0) {
                     detailsText += ` + ${item.addons.join(', ')}`;
                 }
 
+                const safeName = escapeHTML(item.name);
+                const safeDetails = escapeHTML(detailsText);
+
                 html += `
-                    <div class="cart-row">
-                        <div>
-                            <strong>${item.name}</strong>
-                            <div class="cart-row-details">$${Number(item.price).toFixed(2)} each (${detailsText})</div>
+                    <div class="cart-row" role="listitem">
+                        <div class="cart-row-info">
+                            <strong>${safeName}</strong>
+                            <div class="cart-row-details">$${Number(item.price).toFixed(2)} each (${safeDetails})</div>
                         </div>
                         <div class="qty-controls">
-                            <button class="qty-btn" onclick="updateQty(${index}, -1)">-</button>
+                            <button type="button" class="qty-btn" aria-label="Remove one ${safeName}" onclick="updateQty(${index}, -1)">−</button>
                             <span>${item.quantity}</span>
-                            <button class="qty-btn" onclick="updateQty(${index}, 1)">+</button>
+                            <button type="button" class="qty-btn" aria-label="Add one ${safeName}" onclick="updateQty(${index}, 1)">+</button>
+                            <button type="button" class="qty-btn edit-btn" aria-label="Edit ${safeName}" onclick="editItem(${index}, this)">Edit</button>
                         </div>
                     </div>
                 `;
             });
+
             listEl.innerHTML = html;
             totalEl.innerText = '$' + total.toFixed(2);
+
+            const quantity = cart.reduce((sum, item) => sum + item.quantity, 0);
+            liveRegion.textContent = `Current order: ${quantity} ${quantity === 1 ? 'item' : 'items'}, total $${total.toFixed(2)}.`;
         }
 
-        async function submitOrder() {
+        function escapeHTML(value) {
+            return String(value).replace(/[&<>"']/g, character => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            })[character]);
+        }
+
+        // ---------- Payment ----------
+        const paymentDialog = document.getElementById('paymentDialog');
+        const cashInput = document.getElementById('cashTendered');
+        const paymentSubmit = document.getElementById('paymentSubmit');
+        const paymentError = document.getElementById('paymentError');
+
+        let paymentMethod = 'cash';
+        let dueCents = 0;
+        let paying = false;
+
+        const money = cents => '$' + (cents / 100).toFixed(2);
+
+        // Exact, next whole dollar, then common bills above the total
+        function quickCashAmounts(cents) {
+            const bills = [500, 1000, 2000, 5000, 10000].filter(bill => bill > cents);
+            return [...new Set([cents, Math.ceil(cents / 100) * 100, ...bills])].slice(0, 5);
+        }
+
+        function tenderedCents() {
+            const value = parseFloat(cashInput.value);
+            return Number.isFinite(value) && value >= 0 ? Math.round(value * 100) : null;
+        }
+
+        function updatePaymentForm() {
+            const cash = paymentMethod === 'cash';
+
+            document.querySelectorAll('.payment-methods button').forEach(button => {
+                button.setAttribute('aria-pressed', String(button.dataset.method === paymentMethod));
+            });
+
+            document.getElementById('cashPanel').hidden = !cash;
+            document.getElementById('cardPanel').hidden = cash;
+
+            const tendered = tenderedCents();
+            document.getElementById('changeDue').innerText = tendered === null
+                ? '—'
+                : tendered >= dueCents ? money(tendered - dueCents) : `${money(dueCents - tendered)} short`;
+
+            if (!paying) {
+                paymentSubmit.innerText = cash ? 'Complete Cash Sale' : 'Charge Card';
+                paymentSubmit.disabled = cash && (tendered === null || tendered < dueCents);
+            }
+        }
+
+        function openPayment() {
             const statusEl = document.getElementById('statusMessage');
+
             if (cart.length === 0) {
                 statusEl.style.color = '#dc3545';
                 statusEl.innerText = 'Cart is empty.';
                 return;
             }
 
+            dueCents = cart.reduce((sum, item) => sum + Math.round(item.price * 100) * item.quantity, 0);
+            document.getElementById('paymentDue').innerText = money(dueCents);
+
+            document.getElementById('quickCash').innerHTML = quickCashAmounts(dueCents)
+                .map(cents => `<button type="button" data-cents="${cents}">${cents === dueCents ? 'Exact' : money(cents)}</button>`)
+                .join('');
+
+            paymentMethod = 'cash';
+            cashInput.value = '';
+            paymentError.innerText = '';
+            updatePaymentForm();
+            paymentDialog.showModal();
+            cashInput.focus();
+        }
+
+        function closePayment() {
+            if (!paying) paymentDialog.close();
+        }
+
+        paymentDialog.addEventListener('cancel', event => {
+            if (paying) event.preventDefault();
+        });
+
+        document.querySelector('.payment-methods').addEventListener('click', event => {
+            const button = event.target.closest('button[data-method]');
+            if (!button || paying) return;
+
+            paymentMethod = button.dataset.method;
+            paymentError.innerText = '';
+            updatePaymentForm();
+            if (paymentMethod === 'cash') cashInput.focus();
+        });
+
+        document.getElementById('quickCash').addEventListener('click', event => {
+            const button = event.target.closest('button[data-cents]');
+            if (!button) return;
+
+            cashInput.value = (Number(button.dataset.cents) / 100).toFixed(2);
+            updatePaymentForm();
+        });
+
+        cashInput.addEventListener('input', updatePaymentForm);
+
+        document.getElementById('paymentForm').addEventListener('submit', async event => {
+            event.preventDefault();
+            if (paying || paymentSubmit.disabled) return;
+
+            const payment = paymentMethod === 'cash'
+                ? { method: 'cash', tenderedCents: tenderedCents() }
+                : { method: 'card' };
+
+            paying = true;
+            paymentSubmit.disabled = true;
+            paymentError.innerText = '';
+
+            // shortcut: no card processor/hardware yet, so the reader step always approves; swap in Stripe Terminal or Square when the store has a reader.
+            paymentSubmit.innerText = paymentMethod === 'card' ? 'Waiting for card reader…' : 'Processing…';
+
             try {
                 const response = await fetch('/api/orders', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ items: cart })
+                    body: JSON.stringify({ items: cart, payment })
                 });
 
-                if (response.ok) {
-                    const data = await response.json();
-                    
-                    // Increment and update UI count after successful DB write
-                    dailyOrderCount++;
-                    document.getElementById('dailyOrderCount').innerText = dailyOrderCount;
-                    
-                    statusEl.style.color = '#28a745';
-                    statusEl.innerText = `Order #${data.orderId} submitted successfully!`;
-                    
-                    cart = [];
-                    renderCart();
+                const data = await response.json().catch(() => ({}));
 
-                    setTimeout(() => {
-                        statusEl.innerText = '';
-                    }, 4000);
-                } else {
-                    const err = await response.json();
-                    statusEl.style.color = '#dc3545';
-                    statusEl.innerText = 'Error: ' + (err.error || 'Failed to submit order.');
+                if (!response.ok) {
+                    paymentError.innerText = data.error || 'Failed to submit order.';
+                    return;
                 }
+
+                // Increment and update UI count after successful DB write
+                dailyOrderCount++;
+                document.getElementById('dailyOrderCount').innerText = dailyOrderCount;
+
+                const statusEl = document.getElementById('statusMessage');
+                statusEl.style.color = '#28a745';
+                statusEl.innerText = payment.method === 'cash'
+                    ? `Order #${data.orderId} paid. Change due: ${money(data.changeCents)}`
+                    : `Order #${data.orderId} paid by card. Approved.`;
+
+                cart = [];
+                renderCart();
+                paying = false;
+                paymentDialog.close();
+
+                setTimeout(() => {
+                    statusEl.innerText = '';
+                }, 8000);
             } catch (err) {
                 console.error(err);
-                statusEl.style.color = '#dc3545';
-                statusEl.innerText = 'Network error submitting order.';
+                paymentError.innerText = 'Network error submitting order.';
+            } finally {
+                paying = false;
+                updatePaymentForm();
             }
-        }
+        });
     </script>
+    <script src="/js/cashier-accessibility.js"></script>
 </body>
 </html>
